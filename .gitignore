@@ -1,0 +1,28 @@
+# Vivado log and journal files
+*.log
+*.jou
+*.str
+
+# Vivado project work directories
+.Xil/
+*.cache/
+*.hw/
+*.ip_user_files/
+*.runs/
+*.sim/
+
+# Bitstreams and checkpoints
+*.bit
+*.bin
+*.dcp
+
+# Vivado generated report and temporary files
+*.rpt
+*.vdi
+*.wdb
+usage_statistics_webtalk.html
+usage_statistics_webtalk.xml
+
+# OS generated files
+.DS_Store
+Thumbs.db
