@@ -1,0 +1,14 @@
+# Auto-detect text files and perform line ending normalization
+* text=auto
+
+# Specific text files
+*.sv text
+*.v text
+*.xdc text
+*.md text
+
+# Exclude binary files from normalization
+*.pdf binary
+*.bit binary
+*.bin binary
+*.dcp binary
