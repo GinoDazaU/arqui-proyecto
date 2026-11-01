@@ -11,6 +11,8 @@ module datapath(input  clk, reset,
                 // instruction memory
                 output [31:0] PCF,
                 input  [31:0] InstrF,
+                // instruction in decode (to controller)
+                output [31:0] InstrD,
                 // data memory
                 output [31:0] ALUResultM, WriteDataM,
                 input  [31:0] ReadDataM);
@@ -43,7 +45,7 @@ module datapath(input  clk, reset,
   );
 
   // ================= IF/ID =================
-  wire [31:0] InstrD, PCD, PCPlus4D;
+  wire [31:0] PCD, PCPlus4D;
   flopr #(96) regD(.clk(clk), .reset(reset),
                    .d({InstrF, PCF, PCPlus4F}),
                    .q({InstrD, PCD, PCPlus4D}));

@@ -7,15 +7,15 @@ module top(// clock / reset
   wire [31:0] PC, Instr, ReadData;
 
   // instantiate processor and memories
-  riscvsingle rvsingle(
+  riscv rvpipe(
     .clk(clk),
     .reset(reset),
-    .PC(PC),
-    .Instr(Instr),
-    .MemWrite(MemWrite),
-    .DataAdr(DataAdr),
-    .WriteData(WriteData),
-    .ReadData(ReadData)
+    .PCF(PC),
+    .InstrF(Instr),
+    .MemWriteM(MemWrite),
+    .ALUResultM(DataAdr),
+    .WriteDataM(WriteData),
+    .ReadDataM(ReadData)
   );
 
   imem imem(
