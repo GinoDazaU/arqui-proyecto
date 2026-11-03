@@ -1,15 +1,16 @@
-module regfile(input  clk,
+module regfile(input         clk,
                // read ports
-               input  [ 4:0] a1, a2,
+               input  [4:0]  a1, a2,
                output [31:0] rd1, rd2,
                // write port
-               input  we3,
-               input  [ 4:0] a3,
+               input         we3,
+               input  [4:0]  a3,
                input  [31:0] wd3);
 
   reg [31:0] rf[31:0];
 
-  // write third port on rising edge of clock (A3/WD3/WE3)
+  // write port (A3/WD3/WE3) on falling edge of clock:
+  // the value written by WB is visible to the instruction in Decode
   always @(negedge clk) begin
     if (we3) rf[a3] <= wd3;
   end

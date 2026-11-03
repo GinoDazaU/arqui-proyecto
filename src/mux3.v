@@ -1,6 +1,6 @@
-module mux3 (input  [WIDTH-1:0] d0, d1, d2,
-              input  [1:0]       s,
-              output [WIDTH-1:0] y);
+module mux3(input  [WIDTH-1:0] d0, d1, d2,
+            input  [1:0]       s,
+            output [WIDTH-1:0] y);
 
   parameter WIDTH = 8;
 

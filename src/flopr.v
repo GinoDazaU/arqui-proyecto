@@ -1,6 +1,6 @@
-module flopr (input  clk, reset,
-               input  [WIDTH-1:0] d,
-               output reg [WIDTH-1:0] q);
+module flopr(input                  clk, reset,
+             input      [WIDTH-1:0] d,
+             output reg [WIDTH-1:0] q);
 
   parameter WIDTH = 8;
 
