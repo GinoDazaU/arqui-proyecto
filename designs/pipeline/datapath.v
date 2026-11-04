@@ -99,13 +99,14 @@ module datapath(input         clk, reset,
 
   // ================= ID/EX =================
   wire [31:0] RD1E, RD2E, PCE, ImmExtE, PCPlus4E;
+  wire [31:0] InstrE;  // debug: only for the waveform
 
-  floprc #(175) regE(
+  floprc #(207) regE(
     .clk  (clk),
     .reset(reset),
     .clear(FlushE),
-    .d    ({RD1D, RD2D, PCD, Rs1D, Rs2D, RdD, ImmExtD, PCPlus4D}),
-    .q    ({RD1E, RD2E, PCE, Rs1E, Rs2E, RdE, ImmExtE, PCPlus4E})
+    .d    ({RD1D, RD2D, PCD, Rs1D, Rs2D, RdD, ImmExtD, PCPlus4D, InstrD}),
+    .q    ({RD1E, RD2E, PCE, Rs1E, Rs2E, RdE, ImmExtE, PCPlus4E, InstrE})
   );
 
   // ================= EXECUTE =================
@@ -153,12 +154,13 @@ module datapath(input         clk, reset,
 
   // ================= EX/MEM =================
   wire [31:0] PCPlus4M;
+  wire [31:0] InstrM;  // debug: only for the waveform
 
-  flopr #(101) regM(
+  flopr #(133) regM(
     .clk  (clk),
     .reset(reset),
-    .d    ({ALUResultE, WriteDataE, RdE, PCPlus4E}),
-    .q    ({ALUResultM, WriteDataM, RdM, PCPlus4M})
+    .d    ({ALUResultE, WriteDataE, RdE, PCPlus4E, InstrE}),
+    .q    ({ALUResultM, WriteDataM, RdM, PCPlus4M, InstrM})
   );
 
   // ================= MEMORY =================
@@ -166,12 +168,13 @@ module datapath(input         clk, reset,
 
   // ================= MEM/WB =================
   wire [31:0] ALUResultW, ReadDataW, PCPlus4W;
+  wire [31:0] InstrW;  // debug: only for the waveform
 
-  flopr #(101) regW(
+  flopr #(133) regW(
     .clk  (clk),
     .reset(reset),
-    .d    ({ALUResultM, ReadDataM, RdM, PCPlus4M}),
-    .q    ({ALUResultW, ReadDataW, RdW, PCPlus4W})
+    .d    ({ALUResultM, ReadDataM, RdM, PCPlus4M, InstrM}),
+    .q    ({ALUResultW, ReadDataW, RdW, PCPlus4W, InstrW})
   );
 
   // ================= WRITEBACK =================
