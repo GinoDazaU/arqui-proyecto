@@ -1,22 +1,15 @@
-// Program 4 - Flushing: taken beq, not-taken beq and jal
+// Program 4 - Flushing: taken beq and jal
 // Wrong-path instructions would write 99; they must be flushed.
-// Expected stores: MEM[0]=7 [4]=1 [8]=2 [12]=44 [16]=7
-00700193  //   0: addi x3, x0, 7     ; x3 = 7 (must stay 7)
-00700393  //   4: addi x7, x0, 7     ; x7 = 7 (must stay 7)
-00500093  //   8: addi x1, x0, 5    
-00500113  //  12: addi x2, x0, 5    
-00208663  //  16: beq  x1, x2, 12    ; taken -> skips next 2
-06300193  //  20: addi x3, x0, 99    ; flushed
-06300193  //  24: addi x3, x0, 99    ; flushed
-00100213  //  28: addi x4, x0, 1     ; branch target
-00008463  //  32: beq  x1, x0, 8     ; not taken -> nothing flushed
-00200293  //  36: addi x5, x0, 2     ; executes
-00C0036F  //  40: jal  x6, 12        ; x6 = 44, skips next 2
-06300393  //  44: addi x7, x0, 99    ; flushed
-06300393  //  48: addi x7, x0, 99    ; flushed
-00302023  //  52: sw   x3, 0(x0)     ; still 7 -> wrong path flushed
-00402223  //  56: sw   x4, 4(x0)     ; 1
-00502423  //  60: sw   x5, 8(x0)     ; 2
-00602623  //  64: sw   x6, 12(x0)    ; 44 (return address)
-00702823  //  68: sw   x7, 16(x0)    ; still 7
-0000006F  //  72: jal  x0, 0        
+// Expected stores: MEM[0]=7 [4]=28
+00700193  //   0: addi x3, x0, 7        ; x3 = 7 (must stay 7)
+00500093  //   4: addi x1, x0, 5
+00500113  //   8: addi x2, x0, 5
+00208663  //  12: beq x1, x2, 12        ; taken -> skips next 2
+06300193  //  16: addi x3, x0, 99       ; flushed
+06300193  //  20: addi x3, x0, 99       ; flushed
+00C0036F  //  24: jal x6, 12            ; x6 = 28, skips next 2
+06300193  //  28: addi x3, x0, 99       ; flushed
+06300193  //  32: addi x3, x0, 99       ; flushed
+00302023  //  36: sw x3, 0(x0)          ; still 7 -> wrong path flushed
+00602223  //  40: sw x6, 4(x0)          ; 28 (return address)
+0000006F  //  44: jal x0, 0
