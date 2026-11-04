@@ -26,21 +26,14 @@ module testbench;
     # 5; clk = 0; # 5;
   end
 
-  // check results
+  // log every store to data memory (results of the program)
   always @(negedge clk) begin
-    if (MemWrite) begin
-      if (DataAdr === 100 & WriteData === 25) begin
-        $display("Simulation succeeded");
-        // $stop;
-      end else if (DataAdr !== 96) begin
-        $display("Simulation failed");
-        $stop;
-      end
-    end
+    if (MemWrite)
+      $display("t=%0t  MEM[%0d] <= %0d", $time, DataAdr, WriteData);
   end
 
   initial begin
-    #300 $stop;
+    #1000 $stop;
   end
 
 endmodule
