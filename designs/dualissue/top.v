@@ -4,14 +4,15 @@ module top(// clock / reset
            output [31:0] DataAdr, WriteData,
            output        MemWrite);
 
-  wire [31:0] PC, Instr, ReadData;
+  wire [31:0] PC, Instr_0, Instr_1, ReadData;
 
   // instantiate processor and memories
   riscv rvpipe(
     .clk       (clk),
     .reset     (reset),
     .PCF       (PC),
-    .InstrF    (Instr),
+    .InstrF_0  (Instr_0),
+    .InstrF_1  (Instr_1),
     .MemWriteM (MemWrite),
     .ALUResultM(DataAdr),
     .WriteDataM(WriteData),
@@ -19,8 +20,9 @@ module top(// clock / reset
   );
 
   imem imem(
-    .a (PC),
-    .rd(Instr)
+    .a  (PC),
+    .rd1(Instr_0),
+    .rd2(Instr_1)
   );
 
   dmem dmem(

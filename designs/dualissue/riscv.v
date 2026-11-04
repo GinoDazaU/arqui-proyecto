@@ -1,7 +1,8 @@
 module riscv(input         clk, reset,
              // instruction memory
              output [31:0] PCF,
-             input  [31:0] InstrF,
+             input  [31:0] InstrF_0,
+             input  [31:0] InstrF_1,
              // data memory
              output [31:0] ALUResultM,
              output [31:0] WriteDataM,
@@ -9,114 +10,155 @@ module riscv(input         clk, reset,
              input  [31:0] ReadDataM);
 
   // controller <-> datapath
-  wire [31:0] InstrD;
-  wire        ZeroE;
+  wire [31:0] InstrD_0, InstrD_1;
+  wire        ZeroE_0, ZeroE_1;
   wire        PCSrcE;        // also used by hazard unit
-  wire        RegWriteW;     // also used by hazard unit
-  wire [1:0]  ImmSrcD;
-  wire        ALUSrcE;
-  wire [2:0]  ALUControlE;
-  wire [1:0]  ResultSrcW;
+  wire        RegWriteW_0, RegWriteW_1;  // also used by hazard unit
+  wire [1:0]  ImmSrcD_0, ImmSrcD_1;
+  wire        ALUSrcE_0, ALUSrcE_1;
+  wire [2:0]  ALUControlE_0, ALUControlE_1;
+  wire [1:0]  ResultSrcW_0, ResultSrcW_1;
 
   // controller -> hazard unit
-  wire        ResultSrcEb0;
-  wire        RegWriteM;
+  wire        ResultSrcEb0_0, ResultSrcEb0_1;
+  wire        RegWriteM_0, RegWriteM_1;
 
   // hazard unit -> controller and datapath
   wire        FlushE;        // used by controller and datapath
 
   // hazard unit -> datapath
   wire        StallF, StallD, FlushD;
-  wire [1:0]  ForwardAE, ForwardBE;
+  wire [1:0]  ForwardAE_0, ForwardBE_0, ForwardAE_1, ForwardBE_1;
 
   // datapath -> hazard unit
-  wire [4:0]  Rs1D, Rs2D, Rs1E, Rs2E, RdE, RdM, RdW;
+  wire [4:0]  Rs1D_0, Rs2D_0, Rs1E_0, Rs2E_0, RdE_0, RdM_0, RdW_0;
+  wire [4:0]  Rs1D_1, Rs2D_1, Rs1E_1, Rs2E_1, RdE_1, RdM_1, RdW_1;
 
   controller c(
-    .clk         (clk),
-    .reset       (reset),
+    .clk           (clk),
+    .reset         (reset),
     // from instruction
-    .op          (InstrD[6:0]),
-    .funct3      (InstrD[14:12]),
-    .funct7b5    (InstrD[30]),
+    .op_0          (InstrD_0[6:0]),
+    .funct3_0      (InstrD_0[14:12]),
+    .funct7b5_0    (InstrD_0[30]),
+    .op_1          (InstrD_1[6:0]),
+    .funct3_1      (InstrD_1[14:12]),
+    .funct7b5_1    (InstrD_1[30]),
     // from datapath
-    .ZeroE       (ZeroE),
+    .ZeroE_0       (ZeroE_0),
+    .ZeroE_1       (ZeroE_1),
     // from hazard unit
-    .FlushE      (FlushE),
+    .FlushE        (FlushE),
     // to datapath
-    .RegWriteW   (RegWriteW),
-    .ImmSrcD     (ImmSrcD),
-    .ALUSrcE     (ALUSrcE),
-    .ResultSrcW  (ResultSrcW),
-    .ALUControlE (ALUControlE),
+    .RegWriteW_0   (RegWriteW_0),
+    .ImmSrcD_0     (ImmSrcD_0),
+    .ALUSrcE_0     (ALUSrcE_0),
+    .ResultSrcW_0  (ResultSrcW_0),
+    .ALUControlE_0 (ALUControlE_0),
+    .RegWriteW_1   (RegWriteW_1),
+    .ImmSrcD_1     (ImmSrcD_1),
+    .ALUSrcE_1     (ALUSrcE_1),
+    .ResultSrcW_1  (ResultSrcW_1),
+    .ALUControlE_1 (ALUControlE_1),
     // to datapath and hazard unit
-    .PCSrcE      (PCSrcE),
+    .PCSrcE        (PCSrcE),
     // to hazard unit
-    .ResultSrcEb0(ResultSrcEb0),
-    .RegWriteM   (RegWriteM),
+    .ResultSrcEb0_0(ResultSrcEb0_0),
+    .RegWriteM_0   (RegWriteM_0),
+    .ResultSrcEb0_1(ResultSrcEb0_1),
+    .RegWriteM_1   (RegWriteM_1),
     // to data memory
-    .MemWriteM   (MemWriteM)
+    .MemWriteM     (MemWriteM)
   );
 
   datapath dp(
-    .clk        (clk),
-    .reset      (reset),
+    .clk         (clk),
+    .reset       (reset),
     // from controller
-    .PCSrcE     (PCSrcE),
-    .RegWriteW  (RegWriteW),
-    .ImmSrcD    (ImmSrcD),
-    .ALUSrcE    (ALUSrcE),
-    .ALUControlE(ALUControlE),
-    .ResultSrcW (ResultSrcW),
+    .PCSrcE      (PCSrcE),
+    .RegWriteW_0 (RegWriteW_0),
+    .ImmSrcD_0   (ImmSrcD_0),
+    .ALUSrcE_0   (ALUSrcE_0),
+    .ALUControlE_0(ALUControlE_0),
+    .ResultSrcW_0(ResultSrcW_0),
+    .RegWriteW_1 (1'b0),  // lane 1 does not write back yet
+    .ImmSrcD_1   (ImmSrcD_1),
+    .ALUSrcE_1   (ALUSrcE_1),
+    .ALUControlE_1(ALUControlE_1),
+    .ResultSrcW_1(ResultSrcW_1),
     // to controller
-    .ZeroE      (ZeroE),
-    .InstrD     (InstrD),
+    .ZeroE_0     (ZeroE_0),
+    .InstrD_0    (InstrD_0),
+    .ZeroE_1     (ZeroE_1),
+    .InstrD_1    (InstrD_1),
     // from hazard unit
-    .StallF     (StallF),
-    .StallD     (StallD),
-    .FlushD     (FlushD),
-    .FlushE     (FlushE),
-    .ForwardAE  (ForwardAE),
-    .ForwardBE  (ForwardBE),
+    .StallF      (StallF),
+    .StallD      (StallD),
+    .FlushD      (FlushD),
+    .FlushE      (FlushE),
+    .ForwardAE_0 (ForwardAE_0),
+    .ForwardBE_0 (ForwardBE_0),
+    .ForwardAE_1 (ForwardAE_1),
+    .ForwardBE_1 (ForwardBE_1),
     // to hazard unit
-    .Rs1D       (Rs1D),
-    .Rs2D       (Rs2D),
-    .Rs1E       (Rs1E),
-    .Rs2E       (Rs2E),
-    .RdE        (RdE),
-    .RdM        (RdM),
-    .RdW        (RdW),
+    .Rs1D_0      (Rs1D_0),
+    .Rs2D_0      (Rs2D_0),
+    .Rs1E_0      (Rs1E_0),
+    .Rs2E_0      (Rs2E_0),
+    .RdE_0       (RdE_0),
+    .RdM_0       (RdM_0),
+    .RdW_0       (RdW_0),
+    .Rs1D_1      (Rs1D_1),
+    .Rs2D_1      (Rs2D_1),
+    .Rs1E_1      (Rs1E_1),
+    .Rs2E_1      (Rs2E_1),
+    .RdE_1       (RdE_1),
+    .RdM_1       (RdM_1),
+    .RdW_1       (RdW_1),
     // instruction memory
-    .PCF        (PCF),
-    .InstrF     (InstrF),
+    .PCF         (PCF),
+    .InstrF_0    (InstrF_0),
+    .InstrF_1    (InstrF_1),
     // data memory
-    .ALUResultM (ALUResultM),
-    .WriteDataM (WriteDataM),
-    .ReadDataM  (ReadDataM)
+    .ALUResultM  (ALUResultM),
+    .WriteDataM  (WriteDataM),
+    .ReadDataM   (ReadDataM)
   );
 
   hazard hu(
     // from datapath
-    .Rs1D        (Rs1D),
-    .Rs2D        (Rs2D),
-    .Rs1E        (Rs1E),
-    .Rs2E        (Rs2E),
-    .RdE         (RdE),
-    .RdM         (RdM),
-    .RdW         (RdW),
+    .Rs1D_0        (Rs1D_0),
+    .Rs2D_0        (Rs2D_0),
+    .Rs1E_0        (Rs1E_0),
+    .Rs2E_0        (Rs2E_0),
+    .RdE_0         (RdE_0),
+    .RdM_0         (RdM_0),
+    .RdW_0         (RdW_0),
+    .Rs1D_1        (Rs1D_1),
+    .Rs2D_1        (Rs2D_1),
+    .Rs1E_1        (Rs1E_1),
+    .Rs2E_1        (Rs2E_1),
+    .RdE_1         (RdE_1),
+    .RdM_1         (RdM_1),
+    .RdW_1         (RdW_1),
     // from controller
-    .PCSrcE      (PCSrcE),
-    .ResultSrcEb0(ResultSrcEb0),
-    .RegWriteM   (RegWriteM),
-    .RegWriteW   (RegWriteW),
+    .PCSrcE        (PCSrcE),
+    .ResultSrcEb0_0(ResultSrcEb0_0),
+    .RegWriteM_0   (RegWriteM_0),
+    .RegWriteW_0   (RegWriteW_0),
+    .ResultSrcEb0_1(ResultSrcEb0_1),
+    .RegWriteM_1   (RegWriteM_1),
+    .RegWriteW_1   (RegWriteW_1),
     // to datapath
-    .ForwardAE   (ForwardAE),
-    .ForwardBE   (ForwardBE),
-    .StallF      (StallF),
-    .StallD      (StallD),
-    .FlushD      (FlushD),
+    .ForwardAE_0   (ForwardAE_0),
+    .ForwardBE_0   (ForwardBE_0),
+    .ForwardAE_1   (ForwardAE_1),
+    .ForwardBE_1   (ForwardBE_1),
+    .StallF        (StallF),
+    .StallD        (StallD),
+    .FlushD        (FlushD),
     // to datapath and controller
-    .FlushE      (FlushE)
+    .FlushE        (FlushE)
   );
 
 endmodule
