@@ -1,5 +1,6 @@
 module imem(input  [31:0] a,
-            output [31:0] rd);
+            output [31:0] rd1,
+            output [31:0] rd2);
 
   reg [31:0] RAM[63:0];
 
@@ -10,6 +11,7 @@ module imem(input  [31:0] a,
     $readmemh(prog, RAM);
   end
 
-  assign rd = RAM[a[31:2]];  // word aligned
+  assign rd1 = RAM[a[31:2]];  // word aligned
+  assign rd2 = RAM[a[31:2]+1];
 
 endmodule
