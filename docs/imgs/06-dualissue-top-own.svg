@@ -1,0 +1,188 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1410 985" width="1850" height="1293" font-family="Helvetica, Arial, sans-serif">
+<defs>
+<marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#111"/></marker>
+<marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0b6fb8"/></marker>
+<marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#d97706"/></marker>
+<marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#15803d"/></marker>
+</defs>
+<rect width="1410" height="985" fill="#fff"/>
+<text x="8" y="655" font-size="15" fill="#111" text-anchor="start" >CLK</text>
+<text x="8" y="705" font-size="15" fill="#111" text-anchor="start" >Reset</text>
+<polyline points="48,650 150,650" fill="none" stroke="#111" stroke-width="1.5"/>
+<polyline points="56,700 150,700" fill="none" stroke="#111" stroke-width="1.5"/>
+<polyline points="150,640 162,650 150,660" fill="none" stroke="#111" stroke-width="1.5"/>
+<g transform="translate(80,0)">
+<rect x="20" y="20" width="1290" height="915" rx="18" fill="none" stroke="#111" stroke-width="2"/>
+<rect x="40" y="50" width="1090" height="840" rx="14" fill="none" stroke="#111" stroke-width="2" stroke-dasharray="10,6"/>
+<text x="585" y="80" font-size="20" fill="#111" text-anchor="middle" font-weight="bold" >riscv (Dual-Issue, in-order)</text>
+<text x="585" y="917" font-size="20" fill="#111" text-anchor="middle" font-weight="bold" >Processor</text>
+<text x="1245" y="897" font-size="18" fill="#111" text-anchor="middle" font-weight="bold" >External</text>
+<text x="1245" y="917" font-size="18" fill="#111" text-anchor="middle" font-weight="bold" >Memories</text>
+<text x="665" y="958" font-size="22" fill="#111" text-anchor="middle" font-weight="bold" >Top</text>
+<rect x="70" y="95" width="830" height="90" rx="14" fill="none" stroke="#0b6fb8" stroke-width="2.5"/>
+<text x="485" y="114" font-size="18" fill="#0b6fb8" text-anchor="middle" font-weight="bold" >Controller</text>
+<rect x="265" y="124" width="185" height="50" rx="8" fill="#eef6fc" stroke="#0b6fb8" stroke-width="1"/>
+<rect x="455" y="124" width="185" height="50" rx="8" fill="#eef6fc" stroke="#0b6fb8" stroke-width="1"/>
+<text x="357" y="145" font-size="12" fill="#0b6fb8" text-anchor="middle" >lane 1</text>
+<text x="357" y="162" font-size="12" fill="#0b6fb8" text-anchor="middle" >maindec + aludec</text>
+<text x="547" y="145" font-size="12" fill="#0b6fb8" text-anchor="middle" >lane 2</text>
+<text x="547" y="162" font-size="12" fill="#0b6fb8" text-anchor="middle" >maindec + aludec</text>
+<text x="770" y="150" font-size="12" fill="#0b6fb8" text-anchor="middle" >control regs</text>
+<text x="770" y="165" font-size="12" fill="#0b6fb8" text-anchor="middle" >D | E | M | W (per lane)</text>
+<line x1="95" y1="415" x2="95" y2="185" stroke="#111" stroke-width="2" marker-end="url(#ak)"/>
+<text x="0" y="0" font-size="12" fill="#111" text-anchor="start" transform="translate(99,196) rotate(90)">InstrD_0</text>
+<line x1="133" y1="415" x2="133" y2="185" stroke="#111" stroke-width="2" marker-end="url(#ak)"/>
+<text x="0" y="0" font-size="12" fill="#111" text-anchor="start" transform="translate(137,196) rotate(90)">InstrD_1</text>
+<line x1="171" y1="415" x2="171" y2="185" stroke="#111" stroke-width="2" marker-end="url(#ak)"/>
+<text x="0" y="0" font-size="12" fill="#111" text-anchor="start" transform="translate(175,196) rotate(90)">ZeroE_0</text>
+<line x1="209" y1="415" x2="209" y2="185" stroke="#111" stroke-width="2" marker-end="url(#ak)"/>
+<text x="0" y="0" font-size="12" fill="#111" text-anchor="start" transform="translate(213,196) rotate(90)">ZeroE_1</text>
+<line x1="280" y1="185" x2="280" y2="415" stroke="#0b6fb8" stroke-width="1.8" marker-end="url(#ab)"/>
+<text x="0" y="0" font-size="12" fill="#0b6fb8" text-anchor="start" transform="translate(284,196) rotate(90)">RegWriteW_0</text>
+<line x1="318" y1="185" x2="318" y2="415" stroke="#0b6fb8" stroke-width="1.8" marker-end="url(#ab)"/>
+<text x="0" y="0" font-size="12" fill="#0b6fb8" text-anchor="start" transform="translate(322,196) rotate(90)">ImmSrcD_0</text>
+<line x1="356" y1="185" x2="356" y2="415" stroke="#0b6fb8" stroke-width="1.8" marker-end="url(#ab)"/>
+<text x="0" y="0" font-size="12" fill="#0b6fb8" text-anchor="start" transform="translate(360,196) rotate(90)">ALUSrcE_0</text>
+<line x1="394" y1="185" x2="394" y2="415" stroke="#0b6fb8" stroke-width="1.8" marker-end="url(#ab)"/>
+<text x="0" y="0" font-size="12" fill="#0b6fb8" text-anchor="start" transform="translate(398,196) rotate(90)">ALUControlE_0</text>
+<line x1="432" y1="185" x2="432" y2="415" stroke="#0b6fb8" stroke-width="1.8" marker-end="url(#ab)"/>
+<text x="0" y="0" font-size="12" fill="#0b6fb8" text-anchor="start" transform="translate(436,196) rotate(90)">ResultSrcW_0</text>
+<line x1="470" y1="185" x2="470" y2="415" stroke="#0b6fb8" stroke-width="1.8" marker-end="url(#ab)"/>
+<text x="0" y="0" font-size="12" fill="#0b6fb8" text-anchor="start" transform="translate(474,196) rotate(90)">RegWriteW_1</text>
+<line x1="508" y1="185" x2="508" y2="415" stroke="#0b6fb8" stroke-width="1.8" marker-end="url(#ab)"/>
+<text x="0" y="0" font-size="12" fill="#0b6fb8" text-anchor="start" transform="translate(512,196) rotate(90)">ImmSrcD_1</text>
+<line x1="546" y1="185" x2="546" y2="415" stroke="#0b6fb8" stroke-width="1.8" marker-end="url(#ab)"/>
+<text x="0" y="0" font-size="12" fill="#0b6fb8" text-anchor="start" transform="translate(550,196) rotate(90)">ALUSrcE_1</text>
+<line x1="584" y1="185" x2="584" y2="415" stroke="#0b6fb8" stroke-width="1.8" marker-end="url(#ab)"/>
+<text x="0" y="0" font-size="12" fill="#0b6fb8" text-anchor="start" transform="translate(588,196) rotate(90)">ALUControlE_1</text>
+<line x1="622" y1="185" x2="622" y2="415" stroke="#0b6fb8" stroke-width="1.8" marker-end="url(#ab)"/>
+<text x="0" y="0" font-size="12" fill="#0b6fb8" text-anchor="start" transform="translate(626,196) rotate(90)">ResultSrcW_1</text>
+<line x1="660" y1="185" x2="660" y2="415" stroke="#0b6fb8" stroke-width="1.8" marker-end="url(#ab)"/>
+<text x="0" y="0" font-size="12" fill="#0b6fb8" text-anchor="start" transform="translate(664,196) rotate(90)">PCSrcE</text>
+<rect x="700" y="250" width="200" height="70" rx="12" fill="none" stroke="#d97706" stroke-width="2.5"/>
+<text x="800" y="292" font-size="20" fill="#d97706" text-anchor="middle" font-weight="bold" >Hazard Unit</text>
+<line x1="740" y1="185" x2="740" y2="250" stroke="#d97706" stroke-width="1.8" marker-end="url(#ao)"/>
+<text x="746" y="205" font-size="11" fill="#d97706" text-anchor="start" >PCSrcE</text>
+<text x="746" y="218" font-size="11" fill="#d97706" text-anchor="start" >ResultSrcEb0_0/1</text>
+<text x="746" y="231" font-size="11" fill="#d97706" text-anchor="start" >RegWriteM_0/1,</text>
+<text x="746" y="244" font-size="11" fill="#d97706" text-anchor="start" >RegWriteW_0/1</text>
+<line x1="880" y1="250" x2="880" y2="185" stroke="#d97706" stroke-width="1.8" marker-end="url(#ao)"/>
+<text x="886" y="215" font-size="11" fill="#d97706" text-anchor="start" >FlushE</text>
+<line x1="740" y1="320" x2="740" y2="415" stroke="#d97706" stroke-width="1.8" marker-end="url(#ao)"/>
+<text x="746" y="340" font-size="11" fill="#d97706" text-anchor="start" >StallF, StallD,</text>
+<text x="746" y="353" font-size="11" fill="#d97706" text-anchor="start" >FlushD, FlushE,</text>
+<text x="746" y="366" font-size="11" fill="#d97706" text-anchor="start" >ForwardAE_0/1,</text>
+<text x="746" y="379" font-size="11" fill="#d97706" text-anchor="start" >ForwardBE_0/1</text>
+<line x1="880" y1="415" x2="880" y2="320" stroke="#d97706" stroke-width="1.8" marker-end="url(#ao)"/>
+<text x="886" y="340" font-size="11" fill="#d97706" text-anchor="start" >Rs1D_0/1, Rs2D_0/1,</text>
+<text x="886" y="353" font-size="11" fill="#d97706" text-anchor="start" >Rs1E_0/1, Rs2E_0/1,</text>
+<text x="886" y="366" font-size="11" fill="#d97706" text-anchor="start" >RdE_0/1, RdM_0/1,</text>
+<text x="886" y="379" font-size="11" fill="#d97706" text-anchor="start" >RdW_0/1</text>
+<rect x="965" y="235" width="150" height="90" rx="12" fill="none" stroke="#15803d" stroke-width="2.5" stroke-dasharray="8,5"/>
+<text x="1040" y="265" font-size="18" fill="#15803d" text-anchor="middle" font-weight="bold" >Issue Unit</text>
+<text x="1040" y="287" font-size="12" fill="#15803d" text-anchor="middle" >new in E2</text>
+<text x="1040" y="303" font-size="12" fill="#15803d" text-anchor="middle" >signals to be defined</text>
+<polyline points="905,415 905,397 1015,397 1015,325" fill="none" stroke="#15803d" stroke-width="1.8" marker-end="url(#ag)" stroke-dasharray="6,4"/>
+<polyline points="1070,325 1070,407 925,407 925,415" fill="none" stroke="#15803d" stroke-width="1.8" marker-end="url(#ag)" stroke-dasharray="6,4"/>
+<rect x="70" y="415" width="870" height="435" rx="14" fill="none" stroke="#111" stroke-width="2"/>
+<text x="435" y="450" font-size="20" fill="#111" text-anchor="middle" font-weight="bold" >Datapath (2 lanes)</text>
+<text x="0" y="0" font-size="11" fill="#555" text-anchor="middle" transform="translate(88,532) rotate(-90)">Lane 1 (older)</text>
+<text x="0" y="0" font-size="11" fill="#555" text-anchor="middle" transform="translate(88,757) rotate(-90)">Lane 2 (younger)</text>
+<rect x="105" y="490" width="100" height="310" rx="8" fill="#f3f4f6" stroke="#111" stroke-width="1"/>
+<text x="155" y="637" font-size="14" fill="#111" text-anchor="middle" font-weight="bold" >Fetch</text>
+<text x="155" y="657" font-size="11" fill="#111" text-anchor="middle" >PC, PC+4 / PC+8</text>
+<text x="155" y="673" font-size="11" fill="#111" text-anchor="middle" >2 instr per cycle</text>
+<rect x="231" y="490" width="100" height="85" rx="8" fill="#f3f4f6" stroke="#111" stroke-width="1"/>
+<text x="281" y="530.5" font-size="14" fill="#111" text-anchor="middle" font-weight="bold" >Decode 1</text>
+<text x="281" y="548.5" font-size="11" fill="#111" text-anchor="middle" >Ext</text>
+<rect x="357" y="490" width="100" height="85" rx="8" fill="#f3f4f6" stroke="#111" stroke-width="1"/>
+<text x="407" y="530.5" font-size="14" fill="#111" text-anchor="middle" font-weight="bold" >Execute 1</text>
+<text x="407" y="548.5" font-size="11" fill="#111" text-anchor="middle" >ALU 1, Fwd mux</text>
+<rect x="483" y="490" width="100" height="85" rx="8" fill="#f3f4f6" stroke="#111" stroke-width="1"/>
+<text x="533" y="537.5" font-size="14" fill="#111" text-anchor="middle" font-weight="bold" >Memory 1</text>
+<rect x="609" y="490" width="100" height="85" rx="8" fill="#f3f4f6" stroke="#111" stroke-width="1"/>
+<text x="659" y="530.5" font-size="14" fill="#111" text-anchor="middle" font-weight="bold" >Writeback 1</text>
+<text x="659" y="548.5" font-size="11" fill="#111" text-anchor="middle" >Result mux</text>
+<rect x="231" y="715" width="100" height="85" rx="8" fill="#f3f4f6" stroke="#111" stroke-width="1"/>
+<text x="281" y="755.5" font-size="14" fill="#111" text-anchor="middle" font-weight="bold" >Decode 2</text>
+<text x="281" y="773.5" font-size="11" fill="#111" text-anchor="middle" >Ext</text>
+<rect x="357" y="715" width="100" height="85" rx="8" fill="#f3f4f6" stroke="#111" stroke-width="1"/>
+<text x="407" y="755.5" font-size="14" fill="#111" text-anchor="middle" font-weight="bold" >Execute 2</text>
+<text x="407" y="773.5" font-size="11" fill="#111" text-anchor="middle" >ALU 2, Fwd mux</text>
+<rect x="483" y="715" width="100" height="85" rx="8" fill="#f3f4f6" stroke="#111" stroke-width="1"/>
+<text x="533" y="762.5" font-size="14" fill="#111" text-anchor="middle" font-weight="bold" >Memory 2</text>
+<rect x="609" y="715" width="100" height="85" rx="8" fill="#f3f4f6" stroke="#111" stroke-width="1"/>
+<text x="659" y="755.5" font-size="14" fill="#111" text-anchor="middle" font-weight="bold" >Writeback 2</text>
+<text x="659" y="773.5" font-size="11" fill="#111" text-anchor="middle" >Result mux</text>
+<rect x="231" y="615" width="100" height="60" rx="8" fill="#fef3c7" stroke="#b45309" stroke-width="2"/>
+<text x="281" y="643.0" font-size="14" fill="#111" text-anchor="middle" font-weight="bold" >Register File</text>
+<text x="281" y="661.0" font-size="11" fill="#111" text-anchor="middle" >4 read / 2 write</text>
+<rect x="357" y="615" width="100" height="60" rx="8" fill="#fef3c7" stroke="#b45309" stroke-width="2"/>
+<text x="407" y="643.0" font-size="14" fill="#111" text-anchor="middle" font-weight="bold" >Branch unit</text>
+<text x="407" y="661.0" font-size="11" fill="#111" text-anchor="middle" >only 1, shared</text>
+<rect x="483" y="615" width="100" height="60" rx="8" fill="#fef3c7" stroke="#b45309" stroke-width="2"/>
+<text x="533" y="643.0" font-size="14" fill="#111" text-anchor="middle" font-weight="bold" >Dmem port</text>
+<text x="533" y="661.0" font-size="11" fill="#111" text-anchor="middle" >only 1, shared</text>
+<rect x="216" y="485" width="4" height="320" fill="#111"/>
+<rect x="342" y="485" width="4" height="320" fill="#111"/>
+<rect x="468" y="485" width="4" height="320" fill="#111"/>
+<rect x="594" y="485" width="4" height="320" fill="#111"/>
+<text x="218" y="837" font-size="10" fill="#444" text-anchor="middle" >IF/ID</text>
+<text x="344" y="837" font-size="10" fill="#444" text-anchor="middle" >ID/EX</text>
+<text x="470" y="837" font-size="10" fill="#444" text-anchor="middle" >EX/MEM</text>
+<text x="596" y="837" font-size="10" fill="#444" text-anchor="middle" >MEM/WB</text>
+<line x1="205" y1="532" x2="231" y2="532" stroke="#111" stroke-width="2.2" marker-end="url(#ak)"/>
+<line x1="331" y1="532" x2="357" y2="532" stroke="#111" stroke-width="2.2" marker-end="url(#ak)"/>
+<line x1="457" y1="532" x2="483" y2="532" stroke="#111" stroke-width="2.2" marker-end="url(#ak)"/>
+<line x1="583" y1="532" x2="609" y2="532" stroke="#111" stroke-width="2.2" marker-end="url(#ak)"/>
+<line x1="205" y1="757" x2="231" y2="757" stroke="#111" stroke-width="2.2" marker-end="url(#ak)"/>
+<line x1="331" y1="757" x2="357" y2="757" stroke="#111" stroke-width="2.2" marker-end="url(#ak)"/>
+<line x1="457" y1="757" x2="483" y2="757" stroke="#111" stroke-width="2.2" marker-end="url(#ak)"/>
+<line x1="583" y1="757" x2="609" y2="757" stroke="#111" stroke-width="2.2" marker-end="url(#ak)"/>
+<line x1="270" y1="615" x2="270" y2="577" stroke="#111" stroke-width="1.8" marker-end="url(#ak)"/>
+<line x1="270" y1="675" x2="270" y2="713" stroke="#111" stroke-width="1.8" marker-end="url(#ak)"/>
+<polyline points="690,575 690,595 300,595 300,613" fill="none" stroke="#111" stroke-width="1.8" marker-end="url(#ak)"/>
+<polyline points="690,715 690,595" fill="none" stroke="#111" stroke-width="1.8"/>
+<text x="640" y="591" font-size="10" fill="#111" text-anchor="middle" >RegWriteW_0/1</text>
+<line x1="407" y1="575" x2="407" y2="613" stroke="#111" stroke-width="1.8" marker-end="url(#ak)"/>
+<line x1="407" y1="715" x2="407" y2="677" stroke="#111" stroke-width="1.8" marker-end="url(#ak)"/>
+<line x1="533" y1="575" x2="533" y2="613" stroke="#111" stroke-width="1.8" marker-end="url(#ak)"/>
+<line x1="533" y1="715" x2="533" y2="677" stroke="#111" stroke-width="1.8" marker-end="url(#ak)"/>
+<polyline points="380,675 380,695 205,695" fill="none" stroke="#111" stroke-width="1.8" marker-end="url(#ak)"/>
+<text x="336" y="691" font-size="10" fill="#111" text-anchor="end" >PCSrcE</text>
+<polyline points="640,490 640,481 395,481 395,490" fill="none" stroke="#d97706" stroke-width="1.8" marker-end="url(#ao)"/>
+<line x1="533" y1="490" x2="533" y2="481" stroke="#d97706" stroke-width="1.8"/>
+<polyline points="640,800 640,815 395,815 395,800" fill="none" stroke="#d97706" stroke-width="1.8" marker-end="url(#ao)"/>
+<line x1="533" y1="800" x2="533" y2="815" stroke="#d97706" stroke-width="1.8"/>
+<text x="470" y="475" font-size="10" fill="#d97706" text-anchor="middle" >forwarding (ALUResultM_n, ResultW_n)</text>
+<text x="720" y="819" font-size="10" fill="#d97706" text-anchor="start" >forwarding</text>
+<rect x="1180" y="435" width="100" height="125" rx="0" fill="#fff" stroke="#111" stroke-width="3"/>
+<text x="1188" y="459" font-size="13" fill="#111" text-anchor="start" >A</text>
+<text x="1188" y="484" font-size="13" fill="#111" text-anchor="start" >RD1</text>
+<text x="1188" y="509" font-size="13" fill="#111" text-anchor="start" >RD2</text>
+<text x="1230" y="533" font-size="14" fill="#111" text-anchor="middle" font-weight="bold" >Instruction</text>
+<text x="1230" y="550" font-size="14" fill="#111" text-anchor="middle" font-weight="bold" >Memory</text>
+<polyline points="940,455 1180,455" fill="none" stroke="#111" stroke-width="2.2" marker-end="url(#ak)"/>
+<polyline points="1180,480 940,480" fill="none" stroke="#111" stroke-width="2.2" marker-end="url(#ak)"/>
+<polyline points="1180,505 940,505" fill="none" stroke="#111" stroke-width="2.2" marker-end="url(#ak)"/>
+<text x="1060" y="450" font-size="12" fill="#111" text-anchor="middle" >PCF (PC)</text>
+<text x="1060" y="475" font-size="12" fill="#111" text-anchor="middle" >InstrF_0 (Instr_0)</text>
+<text x="1060" y="500" font-size="12" fill="#111" text-anchor="middle" >InstrF_1 (Instr_1)</text>
+<rect x="1180" y="600" width="100" height="100" rx="0" fill="#fff" stroke="#111" stroke-width="3"/>
+<text x="1188" y="631" font-size="13" fill="#111" text-anchor="start" >A</text>
+<text x="1188" y="649" font-size="13" fill="#111" text-anchor="start" >WD</text>
+<text x="1188" y="667" font-size="13" fill="#111" text-anchor="start" >RD</text>
+<text x="1250" y="624" font-size="13" fill="#111" text-anchor="middle" >WE</text>
+<polyline points="1195,600 1207,612 1219,600" fill="none" stroke="#111" stroke-width="2"/>
+<text x="1207" y="594" font-size="12" fill="#111" text-anchor="middle" >CLK</text>
+<text x="1230" y="687" font-size="14" fill="#111" text-anchor="middle" font-weight="bold" >Data Memory</text>
+<polyline points="583,627 1180,627" fill="none" stroke="#111" stroke-width="2.2" marker-end="url(#ak)"/>
+<polyline points="583,645 1180,645" fill="none" stroke="#111" stroke-width="2.2" marker-end="url(#ak)"/>
+<polyline points="1180,663 583,663" fill="none" stroke="#111" stroke-width="2.2" marker-end="url(#ak)"/>
+<text x="1060" y="623" font-size="12" fill="#111" text-anchor="middle" >ALUResultM (DataAdr)</text>
+<text x="1060" y="641" font-size="12" fill="#111" text-anchor="middle" >WriteDataM (WriteData)</text>
+<text x="1060" y="659" font-size="12" fill="#111" text-anchor="middle" >ReadDataM (ReadData)</text>
+<polyline points="900,140 1300,140 1300,582 1250,582 1250,600" fill="none" stroke="#0b6fb8" stroke-width="1.8" marker-end="url(#ab)"/>
+<text x="1040" y="134" font-size="11" fill="#0b6fb8" text-anchor="middle" >MemWriteM (MemWrite)</text>
+</g>
+</svg>
