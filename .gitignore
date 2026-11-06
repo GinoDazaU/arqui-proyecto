@@ -26,3 +26,14 @@ usage_statistics_webtalk.xml
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Reference book
+docs/harris-book.pdf
+
+# LaTeX intermediates
+*.aux
+*.toc
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
