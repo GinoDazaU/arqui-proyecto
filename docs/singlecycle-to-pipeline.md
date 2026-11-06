@@ -22,9 +22,9 @@ Punto de partida: un procesador de ciclo único con `riscvsingle`, `controller`,
 
 En un solo ciclo ocurre todo: se lee la instrucción, se decodifica, se ejecuta, se accede a memoria y se escribe el resultado. El período de reloj lo limita la ruta más larga (la de `lw`).
 
-![Datapath single-cycle](imgs/01-singlecycle-datapath-fig7.15.png)
+![Datapath single-cycle](imgs/singlecycle-datapath.png)
 
-![Top single-cycle](imgs/02-singlecycle-top-fig7.63.png)
+![Top single-cycle](imgs/singlecycle-top.png)
 
 ---
 
@@ -46,7 +46,7 @@ Cambios importantes respecto al single-cycle:
 - **`Rd` viaja con la instrucción** hasta WB, para que la escritura en el register file use el `RdW` correcto y no el `Rd` de la instrucción que está en Decode.
 - **El register file escribe en el flanco de bajada** (`negedge clk`), de modo que una instrucción en WB y otra en ID que lean el mismo registro en el mismo ciclo ven el valor nuevo (resuelve ese hazard sin lógica extra).
 
-![Datapath pipeline sin hazards](imgs/03-pipeline-datapath-no-hazards-fig7.51.png)
+![Datapath pipeline sin hazards](imgs/pipeline-datapath-no-hazards.png)
 
 ---
 
@@ -140,6 +140,6 @@ Se conecta todo lo anterior:
 
 Nota: al hacer flush los registros se ponen en 0, es decir, una instrucción `0x00000000`. Por eso `maindec` recibió un caso `7'b0000000` con controles en cero, para que esa "instrucción nula" no escriba registros ni memoria (y no genere `x` en simulación).
 
-![Datapath pipeline con hazards](imgs/04-pipeline-datapath-with-hazards-fig7.61.png)
+![Datapath pipeline con hazards](imgs/pipeline-datapath-with-hazards.png)
 
-![Top pipeline propio](imgs/05-pipeline-top-own.svg)
+![Top pipeline propio](imgs/pipeline-top-own.svg)
