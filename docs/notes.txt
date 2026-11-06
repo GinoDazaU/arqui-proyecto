@@ -1,3 +1,0 @@
-Presentation:
-- track the instruction in each stage so it shows up in the waveform (generate instrF, instrD, instrE, etc.), so the current instruction is always visible
-- the professor prefers that we show the waveform and explain parts of it
