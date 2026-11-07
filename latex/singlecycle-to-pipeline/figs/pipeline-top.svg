@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1230 700" width="1230" height="700" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#111"/></marker>
+    <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0b6fb8"/></marker>
+    <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#d97706"/></marker>
+  </defs>
+  <rect width="1230" height="700" fill="#fff"/>
+
+  <!-- CLK / Reset (outside processor) -->
+  <text x="8" y="425" font-size="15">CLK</text>
+  <text x="8" y="475" font-size="15">Reset</text>
+  <polyline points="48,420 150,420" fill="none" stroke="#111" stroke-width="1.5"/>
+  <polyline points="56,470 150,470" fill="none" stroke="#111" stroke-width="1.5"/>
+  <polyline points="150,410 162,420 150,430" fill="none" stroke="#111" stroke-width="1.5"/>
+
+  <g transform="translate(80,0)">
+    <!-- Top and Processor boxes -->
+    <rect x="20" y="20" width="1110" height="630" rx="18" fill="none" stroke="#111" stroke-width="2"/>
+    <rect x="40" y="50" width="830" height="560" rx="14" fill="none" stroke="#111" stroke-width="2" stroke-dasharray="10,6"/>
+    <text x="455" y="80" font-size="20" font-weight="bold" text-anchor="middle">riscv</text>
+    <text x="455" y="634" font-size="20" font-weight="bold" text-anchor="middle">Processor</text>
+    <text x="1000" y="634" font-size="20" font-weight="bold" text-anchor="middle">External Memories</text>
+    <text x="575" y="684" font-size="22" font-weight="bold" text-anchor="middle">Top</text>
+
+    <!-- Controller -->
+    <rect x="70" y="95" width="770" height="90" rx="14" fill="none" stroke="#0b6fb8" stroke-width="2.5"/>
+    <text x="455" y="131" font-size="22" font-weight="bold" fill="#0b6fb8" text-anchor="middle">Controller</text>
+    <text x="455" y="154" font-size="12" fill="#555" text-anchor="middle">maindec + aludec, control regs D | E | M | W</text>
+
+    <!-- Hazard unit: sits right above the datapath, between controller and datapath -->
+    <rect x="480" y="235" width="220" height="65" rx="12" fill="none" stroke="#d97706" stroke-width="2.5"/>
+    <text x="590" y="276" font-size="20" font-weight="bold" fill="#d97706" text-anchor="middle">Hazard Unit</text>
+
+    <!-- Datapath -->
+    <rect x="70" y="365" width="670" height="215" rx="14" fill="none" stroke="#111" stroke-width="2"/>
+    <text x="405" y="392" font-size="22" font-weight="bold" text-anchor="middle">Datapath</text>
+
+    <!-- pipeline stages -->
+    <g text-anchor="middle">
+      <rect x="86" y="440" width="92" height="100" rx="8" fill="#f3f4f6" stroke="#111"/>
+      <text x="132" y="484" font-size="14" font-weight="bold">Fetch</text><text x="132" y="506" font-size="11">PC, +4</text>
+      <rect x="200" y="440" width="92" height="100" rx="8" fill="#f3f4f6" stroke="#111"/>
+      <text x="246" y="484" font-size="14" font-weight="bold">Decode</text><text x="246" y="506" font-size="11">RegFile, Ext</text>
+      <rect x="314" y="440" width="92" height="100" rx="8" fill="#f3f4f6" stroke="#111"/>
+      <text x="360" y="484" font-size="14" font-weight="bold">Execute</text><text x="360" y="506" font-size="11">ALU, Fwd mux</text>
+      <rect x="428" y="440" width="92" height="100" rx="8" fill="#f3f4f6" stroke="#111"/>
+      <text x="474" y="484" font-size="14" font-weight="bold">Memory</text><text x="474" y="506" font-size="11">to/from Dmem</text>
+      <rect x="542" y="440" width="92" height="100" rx="8" fill="#f3f4f6" stroke="#111"/>
+      <text x="588" y="484" font-size="14" font-weight="bold">Writeback</text><text x="588" y="506" font-size="11">Result mux</text>
+      <g fill="#111">
+        <rect x="187" y="432" width="4" height="116"/>
+        <rect x="301" y="432" width="4" height="116"/>
+        <rect x="415" y="432" width="4" height="116"/>
+        <rect x="529" y="432" width="4" height="116"/>
+      </g>
+      <g font-size="10" fill="#444">
+        <text x="189" y="426">IF/ID</text>
+        <text x="303" y="426">ID/EX</text>
+        <text x="417" y="426">EX/MEM</text>
+        <text x="531" y="426">MEM/WB</text>
+      </g>
+    </g>
+
+    <!-- datapath ports -->
+    <g font-size="12" text-anchor="end">
+      <text x="734" y="388">PCF</text>
+      <text x="734" y="428">InstrF</text>
+      <text x="734" y="474">ALUResultM</text>
+      <text x="734" y="524">WriteDataM</text>
+      <text x="734" y="559">ReadDataM</text>
+    </g>
+
+    <!-- Instruction memory -->
+    <rect x="950" y="120" width="100" height="130" fill="#fff" stroke="#111" stroke-width="3"/>
+    <text x="1000" y="180" font-size="14" font-weight="bold" text-anchor="middle">Instruction</text>
+    <text x="1000" y="198" font-size="14" font-weight="bold" text-anchor="middle">Memory</text>
+    <text x="958" y="155" font-size="14">A</text>
+    <text x="958" y="225" font-size="14">RD</text>
+
+    <!-- Data memory -->
+    <rect x="950" y="430" width="100" height="170" fill="#fff" stroke="#111" stroke-width="3"/>
+    <text x="1000" y="492" font-size="14" font-weight="bold" text-anchor="middle">Data</text>
+    <text x="1000" y="507" font-size="14" font-weight="bold" text-anchor="middle">Memory</text>
+    <text x="958" y="474" font-size="14">A</text>
+    <text x="958" y="524" font-size="14">WD</text>
+    <text x="958" y="559" font-size="14">RD</text>
+    <text x="958" y="454" font-size="12">CLK</text>
+    <text x="1042" y="454" font-size="14" text-anchor="end">WE</text>
+
+    <!-- memory wires -->
+    <polyline points="740,384 905,384 905,150 950,150" fill="none" stroke="#111" stroke-width="2.5" marker-end="url(#ak)"/>
+    <text x="805" y="376" font-size="12" text-anchor="middle">PCF</text>
+    <polyline points="950,220 925,220 925,424 740,424" fill="none" stroke="#111" stroke-width="2.5" marker-end="url(#ak)"/>
+    <text x="805" y="416" font-size="12" text-anchor="middle">InstrF</text>
+    <polyline points="740,470 950,470" fill="none" stroke="#111" stroke-width="2.5" marker-end="url(#ak)"/>
+    <text x="805" y="462" font-size="12" text-anchor="middle">ALUResultM</text>
+    <polyline points="740,520 950,520" fill="none" stroke="#111" stroke-width="2.5" marker-end="url(#ak)"/>
+    <text x="805" y="512" font-size="12" text-anchor="middle">WriteDataM</text>
+    <polyline points="950,555 740,555" fill="none" stroke="#111" stroke-width="2.5" marker-end="url(#ak)"/>
+    <text x="805" y="547" font-size="12" text-anchor="middle">ReadDataM</text>
+
+    <!-- MemWriteM: controller -> Dmem WE -->
+    <polyline points="840,105 1090,105 1090,450 1050,450" fill="none" stroke="#0b6fb8" stroke-width="1.8" marker-end="url(#ab)"/>
+    <text x="960" y="98" font-size="13" fill="#0b6fb8">MemWriteM</text>
+
+    <!-- datapath -> controller -->
+    <polyline points="100,365 100,185" fill="none" stroke="#111" stroke-width="2.5" marker-end="url(#ak)"/>
+    <text x="106" y="270" font-size="13">InstrD</text>
+    <polyline points="150,365 150,185" fill="none" stroke="#111" stroke-width="2" marker-end="url(#ak)"/>
+    <text x="156" y="270" font-size="13">ZeroE</text>
+
+    <!-- controller -> datapath (blue) -->
+    <g stroke="#0b6fb8" stroke-width="1.8" fill="none">
+      <line x1="230" y1="185" x2="230" y2="365" marker-end="url(#ab)"/>
+      <line x1="275" y1="185" x2="275" y2="365" marker-end="url(#ab)"/>
+      <line x1="320" y1="185" x2="320" y2="365" marker-end="url(#ab)"/>
+      <line x1="365" y1="185" x2="365" y2="365" marker-end="url(#ab)"/>
+      <line x1="410" y1="185" x2="410" y2="365" marker-end="url(#ab)"/>
+      <line x1="455" y1="185" x2="455" y2="365" marker-end="url(#ab)"/>
+    </g>
+    <g font-size="12" fill="#0b6fb8">
+      <text transform="translate(234,196) rotate(90)">RegWriteW</text>
+      <text transform="translate(279,196) rotate(90)">ImmSrcD</text>
+      <text transform="translate(324,196) rotate(90)">ALUSrcE</text>
+      <text transform="translate(369,196) rotate(90)">ALUControlE</text>
+      <text transform="translate(414,196) rotate(90)">ResultSrcW</text>
+      <text transform="translate(459,196) rotate(90)">PCSrcE</text>
+    </g>
+
+    <!-- controller -> hazard -->
+    <line x1="630" y1="185" x2="630" y2="235" stroke="#d97706" stroke-width="1.8" marker-end="url(#ao)"/>
+    <g font-size="11" fill="#d97706" text-anchor="end">
+      <text x="622" y="200">PCSrcE</text>
+      <text x="622" y="213">ResultSrcEb0</text>
+      <text x="622" y="226">RegWriteM, W</text>
+    </g>
+    <!-- hazard -> controller -->
+    <line x1="675" y1="235" x2="675" y2="185" stroke="#d97706" stroke-width="1.8" marker-end="url(#ao)"/>
+    <text x="667" y="213" font-size="11" fill="#d97706" text-anchor="end">FlushE</text>
+
+    <!-- hazard -> datapath -->
+    <line x1="492" y1="300" x2="492" y2="365" stroke="#d97706" stroke-width="1.8" marker-end="url(#ao)"/>
+    <g font-size="10.5" fill="#d97706">
+      <text x="499" y="315">StallF, StallD,</text>
+      <text x="499" y="328">FlushD, FlushE,</text>
+      <text x="499" y="341">ForwardAE,</text>
+      <text x="499" y="354">ForwardBE</text>
+    </g>
+    <!-- datapath -> hazard -->
+    <line x1="690" y1="365" x2="690" y2="300" stroke="#d97706" stroke-width="1.8" marker-end="url(#ao)"/>
+    <g font-size="10.5" fill="#d97706" text-anchor="end">
+      <text x="683" y="315">Rs1D, Rs2D,</text>
+      <text x="683" y="328">Rs1E, Rs2E,</text>
+      <text x="683" y="341">RdE, RdM,</text>
+      <text x="683" y="354">RdW</text>
+    </g>
+  </g>
+</svg>
