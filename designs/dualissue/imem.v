@@ -6,8 +6,13 @@ module imem(input  [31:0] a,
 
   reg [1023:0] prog;  // program file, chosen with +prog=<file>
 
+  integer i;
+
   initial begin
-    if (!$value$plusargs("prog=%s", prog)) prog = "./p1_isa.mem";
+    // empty words read as 0 (decoded as a bubble), so the second fetch port
+    // never sees x past the end of the program
+    for (i = 0; i < 64; i = i + 1) RAM[i] = 32'b0;
+    if (!$value$plusargs("prog=%s", prog)) prog = "./isa.mem";
     $readmemh(prog, RAM);
   end
 
