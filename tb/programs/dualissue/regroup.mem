@@ -1,0 +1,21 @@
+// E2 Program 6 - Regrouping after a partial issue, program order, no lost/duplicated instructions
+// A chain of dependent increments mixed with independent ones: many pairs issue only slot 0,
+// and the waiting instruction is regrouped with the next one. Each sw stores the running value,
+// so a lost or duplicated instruction would change the stored sequence.
+// Expected: MEM[0]=1 [4]=2 [8]=3 [12]=4 [16]=5 [20]=6 ; x1=6 x2=100 x3=200 x4=300
+00100093  //   0: addi x1, x0, 1
+00102023  //   4: sw   x1, 0(x0)         ; RAW with slot 0 -> waits, regrouped
+00108093  //   8: addi x1, x1, 1
+06400113  //  12: addi x2, x0, 100       ; independent: issues with the instruction before
+00102223  //  16: sw   x1, 4(x0)
+00108093  //  20: addi x1, x1, 1
+00102423  //  24: sw   x1, 8(x0)
+00108093  //  28: addi x1, x1, 1
+0C800193  //  32: addi x3, x0, 200
+00102623  //  36: sw   x1, 12(x0)
+00108093  //  40: addi x1, x1, 1
+00102823  //  44: sw   x1, 16(x0)
+12C00213  //  48: addi x4, x0, 300
+00108093  //  52: addi x1, x1, 1
+00102A23  //  56: sw   x1, 20(x0)
+0000006F  //  60: jal  x0, halt

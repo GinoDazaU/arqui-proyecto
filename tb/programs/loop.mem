@@ -1,0 +1,20 @@
+// E2 Program 7 - Small benchmark (preliminary comparison against the single-issue pipeline)
+// Fills an 8-word array with 0,3,6,...,21 and adds it with a loop (lw, add, beq, jal).
+// Expected: MEM[0..28] = 0,3,...,21 ; MEM[128] = 84
+00000093  //   0: addi x1, x0, 0         ; address
+02000113  //   4: addi x2, x0, 32        ; end address
+00000193  //   8: addi x3, x0, 0         ; value
+00208A63  //  12: beq  x1, x2, sum
+0030A023  //  16: sw   x3, 0(x1)
+00318193  //  20: addi x3, x3, 3
+00408093  //  24: addi x1, x1, 4
+FF1FF06F  //  28: jal  x0, fill
+00000093  //  32: addi x1, x0, 0
+00000213  //  36: addi x4, x0, 0         ; accumulator
+00208A63  //  40: beq  x1, x2, done
+0000A283  //  44: lw   x5, 0(x1)
+00408093  //  48: addi x1, x1, 4
+00520233  //  52: add  x4, x4, x5
+FF1FF06F  //  56: jal  x0, loop
+08402023  //  60: sw   x4, 128(x0)
+0000006F  //  64: jal  x0, halt

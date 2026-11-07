@@ -1,0 +1,19 @@
+// E2 Program 2 - RAW between the two candidates and forwarding between lanes/stages
+// - (addi x1 / addi x2,x1): RAW inside the pair -> only slot 0 issues, addi x2 is regrouped
+// - (add x4 / sub x5): add takes x2 from MEM lane 0 and x3 from MEM lane 1 (cross-lane);
+//                      sub takes x1 from WB lane 0 and x3 from MEM lane 1
+// - (or x6 / add x7): or takes x4 from MEM lane 0 and x2 from WB lane 0;
+//                     add takes x5 from MEM lane 1 and x4 from MEM lane 0
+// Expected: x1=5 x2=6 x3=2 x4=8 x5=3 x6=14 x7=11 ; MEM[0]=8 [4]=3 [8]=14 [12]=11
+00500093  //   0: addi x1, x0, 5
+00108113  //   4: addi x2, x1, 1         ; RAW with slot 0 -> waits one cycle (regroup)
+00200193  //   8: addi x3, x0, 2         ; issues with addi x2
+00310233  //  12: add  x4, x2, x3        ; x2: MEM lane 0, x3: MEM lane 1
+403082B3  //  16: sub  x5, x1, x3        ; x1: WB lane 0,  x3: MEM lane 1
+00226333  //  20: or   x6, x4, x2        ; x4: MEM lane 0, x2: WB lane 0
+004283B3  //  24: add  x7, x5, x4        ; x5: MEM lane 1, x4: MEM lane 0
+00402023  //  28: sw   x4, 0(x0)         ; sw + sw: one memory port -> one per cycle
+00502223  //  32: sw   x5, 4(x0)
+00602423  //  36: sw   x6, 8(x0)
+00702623  //  40: sw   x7, 12(x0)
+0000006F  //  44: jal  x0, halt

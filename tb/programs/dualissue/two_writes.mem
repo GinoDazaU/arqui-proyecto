@@ -1,0 +1,17 @@
+// E2 Program 5 - Two writes into the Register File in the same cycle
+// - pairs that write two different registers in the same WB cycle
+// - a pair that writes the SAME register: the younger one (lane 1) must win,
+//   in the register file and in the forwarding paths
+// Expected: x1=1 x2=2 x3=30 x4=30 x5=31 ; MEM[0]=30 [4]=31 [8]=3
+00100093  //   0: addi x1, x0, 1         ; pair: two writes (x1, x2) in the same cycle
+00200113  //   4: addi x2, x0, 2
+00A00193  //   8: addi x3, x0, 10        ; pair: WAW on x3 -> x3 = 30 (lane 1 is younger)
+01E00193  //  12: addi x3, x0, 30
+00018233  //  16: add  x4, x3, x0        ; x3 forwarded from MEM: lane 1 has priority -> 30
+00000013  //  20: nop
+00118293  //  24: addi x5, x3, 1         ; x3 forwarded from WB: lane 1 has priority -> 31
+00208333  //  28: add  x6, x1, x2        ; 3
+00402023  //  32: sw   x4, 0(x0)
+00502223  //  36: sw   x5, 4(x0)
+00602423  //  40: sw   x6, 8(x0)
+0000006F  //  44: jal  x0, halt

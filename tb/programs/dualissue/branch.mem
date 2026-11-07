@@ -1,0 +1,27 @@
+// E2 Program 4 - Branches in the first and second position of the pair, flushing
+// Wrong-path instructions write 99 into x3; they must never retire.
+// Expected: x3=7 x4=1 x5=2 x6=3 x7=4 x8=64 ; MEM[0]=7 [4]=1 [8]=2 [12]=3 [16]=4 [20]=64
+00700193  //   0: addi x3, x0, 7         ; pair
+00500093  //   4: addi x1, x0, 5
+00500113  //   8: addi x2, x0, 5         ; pair
+00100213  //  12: addi x4, x0, 1
+00208663  //  16: beq  x1, x2, t1        ; pair: branch in slot 0, TAKEN -> the slot 1 instruction is annulled
+06300193  //  20: addi x3, x0, 99        ; younger, same pair: annulled
+06300193  //  24: addi x3, x0, 99
+00200293  //  28: addi x5, x0, 2         ; pair: branch in slot 1, TAKEN -> slot 0 is older and is kept
+00208663  //  32: beq  x1, x2, t2
+06300193  //  36: addi x3, x0, 99
+06300193  //  40: addi x3, x0, 99
+00008C63  //  44: beq  x1, x0, t3        ; pair: branch in slot 0 NOT taken -> slot 1 executes
+00300313  //  48: addi x6, x0, 3
+00400393  //  52: addi x7, x0, 4         ; pair: branch in slot 1 NOT taken
+00008663  //  56: beq  x1, x0, t3
+0080046F  //  60: jal  x8, t3            ; jal in slot 0 (x8 = 64) -> flushes slot 1
+06300193  //  64: addi x3, x0, 99
+00302023  //  68: sw   x3, 0(x0)
+00402223  //  72: sw   x4, 4(x0)
+00502423  //  76: sw   x5, 8(x0)
+00602623  //  80: sw   x6, 12(x0)
+00702823  //  84: sw   x7, 16(x0)
+00802A23  //  88: sw   x8, 20(x0)
+0000006F  //  92: jal  x0, halt

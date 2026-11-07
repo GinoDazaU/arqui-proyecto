@@ -1,0 +1,22 @@
+// E2 Program 3 - Load-use dependencies and conflicts on the single data memory port
+// - sw + sw / lw + sw in the same pair -> structural conflict, issued in different cycles
+// - lw + ALU and ALU + lw (independent) -> issued together, the memory port goes to either lane
+// - lw followed by a consumer -> load-use stall (1 bubble in both lanes)
+// - lw and its consumer in the same pair -> RAW: the consumer waits, then load-use stall
+// Expected: x3=11 x4=22 x5=33 x6=12 x7=1 x8=34 ; MEM[0]=11 [4]=22 [8]=33 [12]=12 [16]=34
+00B00093  //   0: addi x1, x0, 11
+01600113  //   4: addi x2, x0, 22
+00102023  //   8: sw   x1, 0(x0)         ; pair: sw + sw -> memory conflict
+00202223  //  12: sw   x2, 4(x0)
+00002183  //  16: lw   x3, 0(x0)         ; lw + independent ALU -> both issue (lane 0 uses memory)
+00100393  //  20: addi x7, x0, 1
+00900493  //  24: addi x9, x0, 9         ; ALU + lw -> both issue (lane 1 uses memory)
+00402203  //  28: lw   x4, 4(x0)
+004182B3  //  32: add  x5, x3, x4        ; load-use with x4 (lw in EX lane 1) -> stall
+00108313  //  36: addi x6, x1, 1
+00502423  //  40: sw   x5, 8(x0)
+00802503  //  44: lw   x10, 8(x0)        ; lw + consumer in the same pair -> RAW, then load-use
+00150413  //  48: addi x8, x10, 1
+00602623  //  52: sw   x6, 12(x0)
+00802823  //  56: sw   x8, 16(x0)
+0000006F  //  60: jal  x0, halt
