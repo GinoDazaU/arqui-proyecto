@@ -37,3 +37,6 @@ docs/harris-book.pdf
 *.synctex.gz
 *.fls
 *.fdb_latexmk
+
+# Generated figure pdfs (rebuilt by each latex/*/build.sh)
+latex/*/figs/*.pdf
