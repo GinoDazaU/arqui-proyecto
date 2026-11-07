@@ -1,4 +1,4 @@
-module testbench;
+module wave_tb;
   reg         clk;
   reg         reset;
   wire [31:0] WriteData;
