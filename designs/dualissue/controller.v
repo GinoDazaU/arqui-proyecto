@@ -6,9 +6,6 @@ module controller(input        clk, reset,
                   input  [6:0] op_1,
                   input  [2:0] funct3_1,
                   input        funct7b5_1,
-                  // from datapath
-                  input        ZeroE_0,
-                  input        ZeroE_1,
                   // from hazard unit
                   input        FlushE_0,
                   input        FlushE_1,
@@ -24,10 +21,10 @@ module controller(input        clk, reset,
                   output       ALUSrcE_1,
                   output [1:0] ResultSrcW_1,
                   output [2:0] ALUControlE_1,
-                  // to datapath and hazard unit
-                  output       PCSrcE,
-                  output       TakenE_0,
-                  output       TakenE_1,
+                  // to branch unit (inside the datapath)
+                  output       BranchE_0, JumpE_0,
+                  output       BranchE_1, JumpE_1,
+                  // to datapath
                   output       MemLaneM,
                   // to hazard unit
                   output       ResultSrcEb0_0,
@@ -89,10 +86,10 @@ module controller(input        clk, reset,
   );
 
   // ================= ID/EX =================
-  wire       RegWriteE_0, MemWriteE_0, JumpE_0, BranchE_0;
+  wire       RegWriteE_0, MemWriteE_0;
   wire [1:0] ResultSrcE_0;
 
-  wire       RegWriteE_1, MemWriteE_1, JumpE_1, BranchE_1;
+  wire       RegWriteE_1, MemWriteE_1;
   wire [1:0] ResultSrcE_1;
 
   floprc #(10) regE_0(
@@ -114,11 +111,7 @@ module controller(input        clk, reset,
   // ================= EXECUTE =================
   assign ResultSrcEb0_0 = ResultSrcE_0[0];
   assign ResultSrcEb0_1 = ResultSrcE_1[0];
-  // single branch unit: the issue unit never sends two branches/jumps in the same pair,
-  // so at most one lane can take a branch per cycle
-  assign TakenE_0       = (BranchE_0 & ZeroE_0) | JumpE_0;
-  assign TakenE_1       = (BranchE_1 & ZeroE_1) | JumpE_1;
-  assign PCSrcE         = TakenE_0 | TakenE_1;
+  // branches/jumps are resolved by the branch unit (in the datapath)
 
   // ================= EX/MEM =================
   wire [1:0] ResultSrcM_0;
