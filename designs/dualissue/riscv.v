@@ -93,7 +93,7 @@ module riscv(input         clk, reset,
     .ALUSrcE_0   (ALUSrcE_0),
     .ALUControlE_0(ALUControlE_0),
     .ResultSrcW_0(ResultSrcW_0),
-    .RegWriteW_1 (1'b0),  // lane 1 does not write back yet
+    .RegWriteW_1 (RegWriteW_1),
     .ImmSrcD_1   (ImmSrcD_1),
     .ALUSrcE_1   (ALUSrcE_1),
     .ALUControlE_1(ALUControlE_1),
