@@ -1,0 +1,23 @@
+% Three pairs issued in consecutive cycles (tb/programs/e2_1_alu_pair.mem); forwarding between lanes.
+\documentclass[tikz,border=3mm]{standalone}
+\usepackage{xfp}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{tgheros}
+\renewcommand{\familydefault}{\sfdefault}
+\input{common}
+\input{pd-common}
+\begin{document}
+\begin{tikzpicture}
+\pdHeader{7}{6}
+\pdLabel{0}{0}{addi x1, x0, 3}{0}   \pdInstr{0}{1}{F,D,E,M,W}
+\pdLabel{1}{4}{addi x2, x0, 7}{1}   \pdInstr{1}{1}{F,D,E,M,W}
+\pdLabel{2}{8}{addi x3, x0, 10}{0}  \pdInstr{2}{2}{F,D,E,M,W}
+\pdLabel{3}{12}{addi x4, x0, 4}{1}  \pdInstr{3}{2}{F,D,E,M,W}
+\pdLabel{4}{16}{add  x5, x1, x2}{0} \pdInstr{4}{3}{F,D,E,M,W}
+\pdLabel{5}{20}{sub  x6, x3, x4}{1} \pdInstr{5}{3}{F,D,E,M,W}
+\pdPair{0}{par 1} \pdPair{2}{par 2} \pdPair{4}{par 3}
+\pdFwd{0}{4}{4}{5} \pdFwd{1}{4}{4}{5}
+\pdFwd{2}{4}{5}{5} \pdFwd{3}{4}{5}{5}
+\end{tikzpicture}
+\end{document}

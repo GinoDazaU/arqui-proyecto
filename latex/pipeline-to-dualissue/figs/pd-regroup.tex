@@ -1,0 +1,23 @@
+% Repeated partial issue and regrouping (tb/programs/e2_6_regroup.mem).
+\documentclass[tikz,border=3mm]{standalone}
+\usepackage{xfp}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{tgheros}
+\renewcommand{\familydefault}{\sfdefault}
+\input{common}
+\input{pd-common}
+\begin{document}
+\begin{tikzpicture}
+\pdHeader{9}{8}
+\pdLabel{0}{0}{addi x1, x0, 1}{0}    \pdInstr{0}{1}{F,D,E,M,W}
+\pdLabel{1}{4}{sw   x1, 0(x0)}{0}    \pdInstr{1}{1}{F,D,S,E,M,W}
+\pdLabel{2}{8}{addi x1, x1, 1}{1}    \pdInstr{2}{2}{F,D,E,M,W}
+\pdLabel{3}{12}{addi x2, x0, 100}{0} \pdInstr{3}{3}{F,D,E,M,W}
+\pdLabel{4}{16}{sw   x1, 4(x0)}{1}   \pdInstr{4}{3}{F,D,E,M,W}
+\pdLabel{5}{20}{addi x1, x1, 1}{0}   \pdInstr{5}{4}{F,D,E,M,W}
+\pdLabel{6}{24}{sw   x1, 8(x0)}{0}   \pdInstr{6}{4}{F,D,S,E,M,W}
+\pdLabel{7}{28}{addi x1, x1, 1}{1}   \pdInstr{7}{5}{F,D,E,M,W}
+\pdFwd{0}{3}{1}{4} \pdFwd{0}{3}{2}{4} \pdFwd{2}{4}{4}{5} \pdFwd{5}{6}{6}{7}
+\end{tikzpicture}
+\end{document}

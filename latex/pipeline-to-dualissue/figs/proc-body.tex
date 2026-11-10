@@ -1,0 +1,431 @@
+% Dual-issue RISC-V datapath: drawing shared by every view (see proc-preamble.tex for the layers).
+% Layout: lane 0 is Fig. 7.61 of Harris & Harris; lane 1 is its mirror image below.
+% Everything shared by the two lanes lives on the middle axis (y = 0):
+% instruction memory, IF/ID, register file, forwarding bus, branch unit, data memory.
+\begin{tikzpicture}[x=1cm,y=1cm, circuit logic US, tiny circuit symbols,
+  every circuit symbol/.style={line width=0.45pt, ctl, fill=white}]
+\ifdefined\dpclip \clip \dpclip; \fi
+
+% lane-local coordinate u (distance from the middle axis) -> global y
+\newcommand{\Y}[1]{\fpeval{\s*(#1)}}
+% signal name with the lane number as subscript
+\newcommand{\Lk}[1]{#1\textsubscript{\k}}
+\newcommand{\Lz}[1]{#1\textsubscript{0}}
+\newcommand{\Lo}[1]{#1\textsubscript{1}}
+
+% FlushE_1 exists as soon as the issue unit can leave slot 1 waiting
+\newif\ifFlushEone \FlushEonefalse
+\ifIssue \FlushEonetrue \fi
+\ifHaz   \FlushEonetrue \fi
+
+% ---------------- stage columns ----------------
+\def\xFD{9.0}     % IF/ID
+\def\xDE{17.0}    % ID/EX
+\def\xEM{29.8}    % EX/MEM
+\def\xMW{36.2}    % MEM/WB
+% hazard unit / issue unit rows
+\def\yHUt{-15.6}  \def\yHUb{-16.8}
+\def\yIUt{-13.7}  \def\yIUb{-14.7}
+
+% =====================================================================
+% PER-LANE PART (lane 0 drawn upwards, lane 1 mirrored downwards)
+% lane-local rows (u):
+%   1.4 RegWriteW  1.7 RdW  2.0 ResultW  2.3 ALUResultM      (feedback, outside the registers)
+%   3.0 RD2/WriteData  4.4 ALUResult  4.6 RD1  5.0 ReadData  (ALU path)
+%   6.4 ImmExt  7.1 PC  7.9 PCPlus4  8.2 Rd  8.5 Rs2  8.8 Rs1  (pass-through)
+%   9.5 ALUSrc  9.9 ALUControl  10.3 Branch  10.7 Jump  11.1 MemWrite  11.5 ResultSrc  11.9 RegWrite
+% =====================================================================
+\foreach \s/\k in {1/0,-1/1} {
+
+  % rotated labels next to vertical wires: read away from the middle axis
+  \ifnum\k=0 \def\ranc{north west}\def\inanc{north west}\else \def\ranc{north east}\def\inanc{south west}\fi
+  % ---------------- pipeline registers of this lane ----------------
+  % CLR notes only where a flush signal reaches the register in this view
+  \def\clrDE{}\def\clrEM{}
+  \ifnum\k=0 \ifHaz \def\clrDE{CLR}\fi
+  \else      \ifFlushEone \def\clrDE{CLR}\fi \ifHaz \def\clrEM{CLR}\fi \fi
+  \PipeReg{\xDE}{\Y{2.7}}{\Y{9.15}}{\Y{12.4}}{\clrDE}
+  \PipeReg{\xEM}{\Y{2.7}}{\Y{9.15}}{\Y{12.4}}{\clrEM}
+  \PipeReg{\xMW}{\Y{2.7}}{\Y{9.15}}{\Y{12.4}}{}
+
+  % ================= DECODE =================
+  % instruction bus of this slot
+  \draw[w] (\xFD+0.175,\Y{5.4}) -- (10.3,\Y{5.4});
+  \node[lab,anchor=south west] at (10.35,\Y{5.4}) {\Lk{InstrD}};
+  \draw[w] (10.3,\Y{3.0}) -- (10.3,\Y{11.6});
+  \foreach \u in {4.6,5.4,6.4,8.2,10.0,10.8} { \dotat{(10.3,\Y{\u})} }
+  \ifFwd \foreach \u in {8.5,8.8} { \dotat{(10.3,\Y{\u})} } \fi
+  % register file read addresses
+  \draw[nw] (10.3,\Y{4.6}) -- node[bit,above] {19:15} (12,\Y{4.6});
+  \draw[nw] (10.3,\Y{3.0}) -- node[bit,above] {24:20} (12,\Y{3.0});
+  \draw[w] (15,\Y{4.6}) -- (\xDE-0.175,\Y{4.6});
+  \draw[w] (15,\Y{3.0}) -- (\xDE-0.175,\Y{3.0});
+  % fields carried to Execute (forwarding / destination)
+  \ifFwd
+  \draw[nw] (10.3,\Y{8.8}) -- node[bit,above,pos=0.06] {19:15} (\xDE-0.175,\Y{8.8}) node[lab,anchor=south east] {\Lk{Rs1D}};
+  \draw[nw] (10.3,\Y{8.5}) -- node[bit,above,pos=0.06] {24:20} (\xDE-0.175,\Y{8.5}) node[lab,anchor=south east] {\Lk{Rs2D}};
+  \fi
+  \draw[nw] (10.3,\Y{8.2}) -- node[bit,above,pos=0.06] {11:7}  (\xDE-0.175,\Y{8.2}) node[lab,anchor=south east] {\Lk{RdD}};
+  % extend
+  \draw[blk] (11.0,\Y{6.15}) -- (11.0,\Y{6.65}) -- (13.4,\Y{6.75}) -- (13.4,\Y{6.05}) -- cycle;
+  \node[lab,font=\fontsize{6.5}{6.5}\selectfont\bfseries] at (12.25,\Y{6.4}) {Extend};
+  \draw[w] (10.3,\Y{6.4}) -- node[bit,above] {31:7} (11.0,\Y{6.4});
+  \draw[w] (13.4,\Y{6.4}) -- (\xDE-0.175,\Y{6.4}) node[lab,anchor=south east] {\Lk{ImmExtD}};
+  % PC of the instruction and PC+4 (PC+4 is computed in Fetch and travels through IF/ID)
+  \draw[w] (\xFD+0.175,\Y{7.1}) -- (\xDE-0.175,\Y{7.1}) node[lab,anchor=south east] {\Lk{PCD}};
+  \draw[w] (\xFD+0.175,\Y{7.9}) -- (\xDE-0.175,\Y{7.9}) node[lab,anchor=south east] {\Lk{PCPlus4D}};
+
+  % control unit of this slot
+  \draw[line width=1.1pt,ctl,rounded corners=4pt,fill=white] (10.8,\Y{9.2}) rectangle (12.6,\Y{12.2});
+  \node[lab,ctl,align=center,font=\fontsize{7}{7}\selectfont\bfseries] at (12.0,\Y{11.25}) {Control\\Unit \k};
+  \draw[w] (10.3,\Y{11.6}) -- node[bit,above] {6:0}   (10.8,\Y{11.6}) node[lab,anchor=west] {op};
+  \draw[w] (10.3,\Y{10.8}) -- node[bit,above] {14:12} (10.8,\Y{10.8}) node[lab,anchor=west] {funct3};
+  \draw[nw] (10.3,\Y{10.0}) -- node[bit,above] {30}   (10.8,\Y{10.0}) node[lab,anchor=west] {funct7\textsubscript{5}};
+  \foreach \u/\nm in {11.9/RegWrite,11.5/ResultSrc,11.1/MemWrite,10.7/Jump,10.3/Branch,9.9/ALUControl,9.5/ALUSrc} {
+    \draw[c] (12.6,\Y{\u}) -- (\xDE-0.175,\Y{\u});
+    \node[lab,ctl,anchor=south west] at (12.7,\Y{\u}) {\Lk{\nm D}};
+  }
+  \draw[c] (12.2,\Y{9.2}) -- (12.2,\Y{6.7});
+  \node[lab,ctl,anchor=west] at (12.25,\Y{9.0}) {\Lk{ImmSrcD}};
+
+  % ================= EXECUTE =================
+  % control signals in Execute
+  \foreach \u/\nm in {11.9/RegWrite,11.5/ResultSrc,11.1/MemWrite} {
+    \draw[c] (\xDE+0.175,\Y{\u}) -- (\xEM-0.175,\Y{\u});
+    \node[lab,ctl,anchor=south west] at (18.35,\Y{\u}) {\Lk{\nm E}};
+  }
+  \node[lab,ctl,anchor=south west] at (18.35,\Y{10.7}) {\Lk{JumpE}};
+  \node[lab,ctl,anchor=south west] at (18.35,\Y{10.3}) {\Lk{BranchE}};
+  \node[lab,ctl,anchor=south west] at (18.35,\Y{9.9})  {\Lk{ALUControlE}};
+  \node[lab,ctl,anchor=south west] at (18.35,\Y{9.5})  {\Lk{ALUSrcE}};
+
+  % SrcB multiplexer
+  \Mux{sb\k}{22.5}{\Y{3.75}}{2}{0.5}{\s}
+  \ifFwd
+    % forwarding multiplexers: 000 RF, 001 W0, 010 W1, 011 M0, 100 M1
+    \def\muxhw{0.22}
+    \Mux[000,001,010,011,100]{fa\k}{20.6}{\Y{5.1}}{5}{0.25}{\s}
+    \Mux[000,001,010,011,100]{fb\k}{21.3}{\Y{3.5}}{5}{0.25}{\s}
+    \def\muxhw{0.2}
+    \draw[w] (\xDE+0.175,\Y{4.6}) -- (fa\k-0);
+    \draw[w] (\xDE+0.175,\Y{3.0}) -- (fb\k-0);
+    % taps from the forwarding bus (x: W0 19.25, W1 19.0, M0 18.75, M1 18.5)
+    \foreach \i/\bx in {1/19.25,2/19.0,3/18.75,4/18.5} {
+      \draw[w] (\bx,{\s*(4.6+0.25*\i)}) -- (fa\k-\i);
+      \draw[w] (\bx,{\s*(3.0+0.25*\i)}) -- (fb\k-\i);
+      \dotat{(\bx,{\s*(3.0+0.25*\i)})}
+    }
+    \draw[w] (fb\k-o) -- (sb\k-0);
+    \draw[w] (fa\k-o) -- (24.0,\Y{5.1});
+  \else
+    % no forwarding: the register file values go straight to the ALU (as in Fig. 7.51)
+    \draw[w] (\xDE+0.175,\Y{4.6}) -- (20.6,\Y{4.6}) -- (20.6,\Y{5.1}) -- (24.0,\Y{5.1});
+    \draw[w] (\xDE+0.175,\Y{3.0}) -- (21.3,\Y{3.0}) -- (21.3,\Y{3.5}) -- (sb\k-0);
+  \fi
+  \node[lab,anchor=\inanc] at (19.3,\Y{4.6}) {\Lk{RD1E}};
+  \node[lab,anchor=\inanc] at (19.3,\Y{3.0}) {\Lk{RD2E}};
+  \draw[w] (21.8,\Y{3.5}) -- (21.8,\Y{3.0}) -- (\xEM-0.175,\Y{3.0}) node[lab,anchor=south east] {\Lk{WriteDataE}};
+  \dotat{(21.8,\Y{3.5})}
+  \draw[w] (22.05,\Y{6.4}) -- (22.05,\Y{4.0}) -- (sb\k-1);
+  \dotat{(22.05,\Y{6.4})}
+  \draw[c] (\xDE+0.175,\Y{9.5}) -| (sb\k-so);
+  % ALU
+  \pgfmathsetmacro\alo{min(\Y{3.2},\Y{5.6})}\pgfmathsetmacro\ahi{max(\Y{3.2},\Y{5.6})}
+  \AluV{alu\k}{24.0}{\alo}{\ahi}{ALU}
+  \draw[w] (23.0,\Y{5.1}) -- (24.0,\Y{5.1});   % SrcA end drawn over the ALU outline
+  \node[lab,anchor=south east] at (23.95,\Y{5.1}) {\Lk{SrcAE}};
+  \draw[w] (sb\k-o) -- (24.0,\Y{3.75});
+  \draw[w] (24.9,\Y{4.4}) -- (\xEM-0.175,\Y{4.4}) node[lab,anchor=south east] {\Lk{ALUResultE}};
+  \draw[c] (\xDE+0.175,\Y{9.9}) -| (24.45,\Y{5.33});
+  % operands of this lane to the single branch unit (middle axis):
+  %   PCE 26.1, ImmExtE 26.4, SrcAE 26.7, WriteDataE (= rs2) 27.0, BranchE 27.6, JumpE 28.0
+  \draw[w] (\xDE+0.175,\Y{6.4}) -- (26.4,\Y{6.4}) -- (26.4,\Y{1.15});
+  \node[lab,anchor=south west] at (18.35,\Y{6.4}) {\Lk{ImmExtE}};
+  \draw[w] (\xDE+0.175,\Y{7.1}) -- (26.1,\Y{7.1}) -- (26.1,\Y{1.15});
+  \node[lab,anchor=south west] at (18.35,\Y{7.1}) {\Lk{PCE}};
+  \draw[w] (23.75,\Y{5.1}) -- (23.75,\Y{2.65}) -- (26.7,\Y{2.65}) -- (26.7,\Y{1.15});
+  \dotat{(23.75,\Y{5.1})}
+  \draw[w] (27.0,\Y{3.0}) -- (27.0,\Y{1.15});  \dotat{(27.0,\Y{3.0})}
+  % pass-through rows
+  \draw[w] (\xDE+0.175,\Y{7.9}) -- (\xEM-0.175,\Y{7.9});
+  \node[lab,anchor=south west] at (18.35,\Y{7.9}) {\Lk{PCPlus4E}};
+  \draw[nw] (\xDE+0.175,\Y{8.2}) -- (\xEM-0.175,\Y{8.2});
+  \node[lab,anchor=south west] at (18.35,\Y{8.2}) {\Lk{RdE}};
+  % BranchE / JumpE of this lane to the branch unit
+  \draw[c] (\xDE+0.175,\Y{10.3}) -- (27.6,\Y{10.3}) -- (27.6,\Y{1.15});
+  \draw[c] (\xDE+0.175,\Y{10.7}) -- (28.0,\Y{10.7}) -- (28.0,\Y{1.15});
+
+  % ================= MEMORY =================
+  \foreach \u/\nm in {11.9/RegWrite,11.5/ResultSrc} {
+    \draw[c] (\xEM+0.175,\Y{\u}) -- (\xMW-0.175,\Y{\u});
+    \node[lab,ctl,anchor=south west] at (\xEM+0.25,\Y{\u}) {\Lk{\nm M}};
+  }
+  \draw[c] (\xEM+0.175,\Y{11.1}) -- (30.6,\Y{11.1});
+  \node[lab,ctl,anchor=south west] at (\xEM+0.25,\Y{11.1}) {\Lk{MemWriteM}};
+  \draw[w] (\xEM+0.175,\Y{4.4}) -- (\xMW-0.175,\Y{4.4});
+  \node[lab,anchor=south west] at (\xEM+0.25,\Y{4.4}) {\Lk{ALUResultM}};
+  \draw[w] (\xEM+0.175,\Y{3.0}) node[lab,anchor=south west] {\Lk{WriteDataM}};
+  \draw[w] (\xEM+0.175,\Y{7.9}) -- (\xMW-0.175,\Y{7.9});
+  \node[lab,anchor=south west] at (\xEM+0.25,\Y{7.9}) {\Lk{PCPlus4M}};
+  \draw[nw] (\xEM+0.175,\Y{8.2}) -- (\xMW-0.175,\Y{8.2});
+  \node[lab,anchor=south west] at (\xEM+0.25,\Y{8.2}) {\Lk{RdM}};
+  \ifFwd
+    % forwarding source ALUResultM (to the forwarding bus)
+    \draw[w] (30.1,\Y{4.4}) -- (30.1,\Y{2.3}) -- (18.75-0.25*\k,\Y{2.3});
+    \dotat{(30.1,\Y{4.4})}
+  \fi
+
+  % ================= WRITEBACK =================
+  \draw[w] (\xMW+0.175,\Y{4.4}) -- (38.2-0.2,\Y{4.4});
+  \node[lab,anchor=south west] at (\xMW+0.25,\Y{4.4}) {\Lk{ALUResultW}};
+  \draw[w] (\xMW+0.175,\Y{5.0}) -- (38.2-0.2,\Y{5.0});
+  \node[lab,anchor=south west] at (\xMW+0.25,\Y{5.0}) {\Lk{ReadDataW}};
+  \draw[w] (\xMW+0.175,\Y{7.9}) -- (37.8,\Y{7.9}) -- (37.8,\Y{5.6}) -- (38.0,\Y{5.6});
+  \node[lab,anchor=south west] at (\xMW+0.25,\Y{7.9}) {\Lk{PCPlus4W}};
+  \Mux[00,01,10]{rm\k}{38.2}{\Y{5.0}}{3}{0.6}{\s}
+  \draw[c] (\xMW+0.175,\Y{11.5}) -| (rm\k-so);
+  \node[lab,ctl,anchor=south west] at (\xMW+0.25,\Y{11.5}) {\Lk{ResultSrcW}};
+  % ResultW, RdW and RegWriteW go back to the write port of this lane
+  \draw[w] (rm\k-o) -- (39.0,\Y{5.0}) -- (39.0,\Y{2.0}) -- (15,\Y{2.0});
+  \node[lab,anchor=south east] at (38.95,\Y{2.0}) {\Lk{ResultW}};
+  \draw[nw] (\xMW+0.175,\Y{8.2}) -- (39.4,\Y{8.2}) -- (39.4,\Y{1.7}) -- (15,\Y{1.7});
+  \node[lab,anchor=south west] at (\xMW+0.25,\Y{8.2}) {\Lk{RdW}};
+  \draw[c] (\xMW+0.175,\Y{11.9}) -- (39.8,\Y{11.9}) -- (39.8,\Y{1.4}) -- (15,\Y{1.4});
+  \node[lab,ctl,anchor=south west] at (\xMW+0.25,\Y{11.9}) {\Lk{RegWriteW}};
+  \node[ttl] at (41.0,\Y{6.5}) {Lane \k};
+
+  % ================= HAZARD UNIT CONNECTIONS OF THIS LANE =================
+  \ifFwd
+    % inputs: Rs1E / Rs2E (Execute), RdM / RegWriteM, RdW / RegWriteW
+    \pgfmathsetmacro\xra{17.7+0.3*\k}\pgfmathsetmacro\xrb{17.4+0.9*\k}
+    \draw[nw,hzd] (\xDE+0.175,\Y{8.8}) -- (\xra,\Y{8.8}) -- (\xra,\yHUt);
+    \draw[nw,hzd] (\xDE+0.175,\Y{8.5}) -- (\xrb,\Y{8.5}) -- (\xrb,\yHUt);
+    \pgfmathsetmacro\xma{34.7+0.8*\k}\pgfmathsetmacro\xmb{35.0+0.8*\k}
+    \draw[h] (\xma,\Y{8.2}) -- (\xma,\yHUt);  \dotat{(\xma,\Y{8.2})}
+    \draw[h] (\xmb,\Y{11.9}) -- (\xmb,\yHUt); \dotat{(\xmb,\Y{11.9})}
+    \pgfmathsetmacro\xwa{36.6+0.6*\k}\pgfmathsetmacro\xwb{36.9+0.6*\k}
+    \draw[h] (\xwa,\Y{1.7}) -- (\xwa,\yHUt);  \dotat{(\xwa,\Y{1.7})}
+    \draw[h] (\xwb,\Y{1.4}) -- (\xwb,\yHUt);  \dotat{(\xwb,\Y{1.4})}
+  \fi
+  \ifIssue
+    % to the issue unit: RdE and ResultSrcE[0] (1 = lw in Execute)
+    \pgfmathsetmacro\xir{22.85+0.25*\k}\pgfmathsetmacro\xis{23.35+0.25*\k}
+    \pgfmathsetmacro\yir{-12.95-0.15*\k}\pgfmathsetmacro\yis{-13.25-0.15*\k}
+    \pgfmathsetmacro\eir{15.3+0.2*\k}\pgfmathsetmacro\eis{15.7+0.2*\k}
+    \draw[n] (\xir,\Y{8.2})  -- (\xir,\yir) -- (\eir,\yir) -- (\eir,\yIUt);  \dotat{(\xir,\Y{8.2})}
+    \draw[n] (\xis,\Y{11.5}) -- (\xis,\yis) -- (\eis,\yis) -- (\eis,\yIUt);  \dotat{(\xis,\Y{11.5})}
+  \fi
+}
+
+% =====================================================================
+% SHARED PART
+% =====================================================================
+\ifFwd
+% ---------------- forwarding bus (both lanes read MEM/WB of both lanes) ----------------
+\draw[w] (19.25,-4.85) -- (19.25,4.85);   % ResultW_0
+\draw[w] (19.0,-5.1)   -- (19.0,5.1);     % ResultW_1
+\draw[w] (18.75,-5.35) -- (18.75,5.35);   % ALUResultM_0
+\draw[w] (18.5,-5.6)   -- (18.5,5.6);     % ALUResultM_1
+\dotat{(19.25,2.0)} \dotat{(19.0,-2.0)} \dotat{(18.75,2.3)} \dotat{(18.5,-2.3)}
+\node[lab,anchor=south,rotate=90] at (18.35,0.0) {forwarding};
+\node[lab,anchor=south west] at (19.3,2.3) {\Lz{ALUResultM}};
+\node[lab,anchor=north west] at (19.3,-2.3) {\Lo{ALUResultM}};
+\fi
+
+% ---------------- register file (4 read, 2 write) ----------------
+\draw[blk] (12,-5.0) rectangle (15,5.0);
+\node[ttl] at (13.5,0) {Register\\File};
+\node[bit] at (13.5,-0.6) {4 read / 2 write};
+\draw[line width=0.5pt] (13.38,5.0) -- (13.5,4.85) -- (13.62,5.0);
+\node[lab,anchor=south] at (13.5,5.05) {CLK};
+\foreach \y/\t in {4.6/A1,3.0/A2,-3.0/A5,-4.6/A4} \node[lab,anchor=west] at (12,\y) {\t};
+\foreach \y/\t in {4.6/RD1,3.0/RD2,-3.0/RD5,-4.6/RD4,2.0/WD3,1.7/A3,1.4/WE3,-2.0/WD6,-1.7/A6,-1.4/WE6}
+  \node[bit,anchor=east] at (15,\y) {\t};
+\node[bit,align=center] at (13.5,-1.25) {same register: A6 wins};
+
+% ---------------- FETCH ----------------
+\Mux{pm}{1.5}{0}{2}{0.6}{1}
+\draw[blk] (2.5,-0.6) rectangle (2.9,0.6);
+\draw[line width=0.5pt] (2.58,0.6) -- (2.7,0.45) -- (2.82,0.6);
+\node[lab,anchor=south] at (2.7,0.62) {CLK};
+\ifHaz \node[bit,rotate=90] at (2.7,-0.35) {EN}; \fi
+\draw[w] (pm-o) -- (2.5,0) node[lab,anchor=south,pos=0.5] {PCF'};
+\draw[w] (2.9,0) -- (3.6,0);
+\node[lab,anchor=north west,rotate=90] at (3.22,2.0) {PCF};
+\draw[blk] (3.6,-1.6) rectangle (6.0,1.6);
+\node[ttl] at (4.85,0) {Instruction\\Memory};
+\node[lab,anchor=west] at (3.6,0) {A};
+\node[lab,anchor=east] at (6.0,0.6) {RD1}; \node[lab,anchor=east] at (6.0,-0.6) {RD2};
+\node[bit,anchor=north] at (4.8,-1.6) {RD1 = mem[A], RD2 = mem[A+4]};
+% adders PC+4 / PC+8
+\draw[w] (3.2,0) -- (3.2,-4.7) -- (3.9,-4.7);  \dotat{(3.2,0)}
+\draw[w] (3.2,-2.7) -- (3.9,-2.7);             \dotat{(3.2,-2.7)}
+\Alu{a4}{3.9}{-3.6}{-2.4}{+}
+\Alu{a8}{3.9}{-5.6}{-4.4}{+}
+\draw[w] (3.9,-3.3) -- ++(-0.3,0) node[lab,anchor=east] {4};
+\draw[w] (3.9,-5.3) -- ++(-0.3,0) node[lab,anchor=east] {8};
+\node[lab,anchor=north west] at (1.0,-6.4) {PCPlus8F};
+\ifIssue
+  % PC selection: PC+8 (pair issued) / PC+4 (regroup), then the branch target
+  \Mux{sq}{0.3}{-0.3}{2}{0.6}{1}
+  \Mux{ri0}{7.5}{5.4}{2}{0.6}{1}      % InstrNextD_0:   InstrF_0 / InstrD_1
+  \Mux{rp0}{7.5}{7.1}{2}{0.3}{1}      % PCNextD_0:      PCF      / PCD_1
+  \Mux{rq0}{7.5}{7.9}{2}{0.3}{1}      % PCPlus4NextD_0: PCPlus4F / PCPlus4D_1
+  \Mux{ri1}{7.5}{-5.4}{2}{0.6}{-1}    % InstrNextD_1:   InstrF_1 / InstrF_0
+  \Mux{rp1}{7.5}{-7.1}{2}{0.3}{-1}    % PCNextD_1:      PCPlus4F / PCF
+  \Mux{rq1}{7.5}{-7.9}{2}{0.3}{-1}    % PCPlus4NextD_1: PCPlus8F / PCPlus4F
+  \draw[w] (sq-o) -- (pm-0);
+  \draw[w] (a4-o) -- (5.6,-3.0) -- (5.6,-8.05) -- (rq1-1);
+  \draw[w] (5.6,-6.95) -- (rp1-0);               \dotat{(5.6,-6.95)}
+  \draw[w] (5.6,-3.0) -- (6.25,-3.0) -- (6.25,7.75) -- (rq0-0);  \dotat{(5.6,-3.0)}
+  \node[lab,anchor=south west] at (1.0,-6.0) {PCPlus4F};
+  \draw[w] (5.6,-6.0) -- (-0.4,-6.0) -- (-0.4,0.0) -- (sq-1);  \dotat{(5.6,-6.0)}
+  \draw[w] (a8-o) -- (5.2,-5.0) -- (5.2,-6.4) -- (-0.7,-6.4) -- (-0.7,-0.6) -- (sq-0);
+  \draw[w] (5.2,-6.4) -- (5.2,-7.75) -- (rq1-0);  \dotat{(5.2,-6.4)}
+
+  % regroup multiplexers in front of IF/ID
+  \draw[w] (6.0,0.6) -- (6.8,0.6) -- (6.8,5.1) -- (ri0-0);
+  \draw[w] (6.8,0.6) -- (6.8,-5.7) -- (ri1-1);  \dotat{(6.8,0.6)}
+  \draw[w] (6.0,-0.6) -- (7.05,-0.6) -- (7.05,-5.1) -- (ri1-0);
+  \draw[w] (3.2,0) -- (3.2,6.95) -- (rp0-0);
+  \draw[w] (3.2,-4.7) -- (3.2,-7.25) -- (rp1-1);  \dotat{(3.2,-4.7)}
+  \foreach \m in {ri0,rp0,rq0,ri1,rp1,rq1} { \draw[w] (\m-o) -- (\xFD-0.175,0 |- \m-o); }
+\else
+  % one pair per cycle, always PC+8; the pair goes straight into IF/ID
+  \draw[w] (a8-o) -- (5.2,-5.0) -- (5.2,-6.4) -- (-0.7,-6.4) -- (-0.7,-0.3) -- (pm-0);
+  \draw[w] (a4-o) -- (5.6,-3.0) -- (5.6,-7.1) -- (\xFD-0.175,-7.1);  \dotat{(5.6,-3.0)}
+  \draw[w] (5.6,-3.0) -- (6.25,-3.0) -- (6.25,7.9) -- (\xFD-0.175,7.9);
+  \draw[w] (5.2,-6.4) -- (5.2,-7.9) -- (\xFD-0.175,-7.9);  \dotat{(5.2,-6.4)}
+  \node[lab,anchor=south west] at (5.65,-7.1) {PCPlus4F};
+  \draw[w] (6.0,0.6) -- (6.8,0.6) -- (6.8,5.4) -- (\xFD-0.175,5.4);
+  \draw[w] (6.0,-0.6) -- (7.05,-0.6) -- (7.05,-5.4) -- (\xFD-0.175,-5.4);
+  \draw[w] (3.2,0) -- (3.2,7.1) -- (\xFD-0.175,7.1);
+\fi
+\node[lab,anchor=south west] at (6.0,0.6) {\Lz{InstrF}};
+\node[lab,anchor=north west] at (6.0,-0.6) {\Lo{InstrF}};
+% IF/ID register (one register for the pair)
+\draw[blk] (\xFD-0.175,-8.4) rectangle (\xFD+0.175,8.4);
+\draw[line width=0.5pt] (\xFD-0.12,8.4) -- (\xFD,8.25) -- (\xFD+0.12,8.4);
+\node[lab,anchor=south] at (\xFD,8.45) {CLK};
+\ifHaz \node[bit,rotate=90] at (\xFD,-7.2) {EN \;CLR}; \fi
+\ifIssue
+  % feedback of slot 1 (InstrD_1, PCD_1, PCPlus4D_1) to the slot 0 inputs (regroup)
+  \draw[w] (9.65,-5.4) -- (9.65,9.45) -- (6.95,9.45) -- (6.95,5.7) -- (ri0-1);
+  \draw[w] (9.45,-7.1) -- (9.45,9.2) -- (7.1,9.2) -- (7.1,7.25) -- (rp0-1);
+  \draw[w] (9.25,-7.9) -- (9.25,8.95) -- (7.2,8.95) -- (7.2,8.05) -- (rq0-1);
+  \dotat{(9.65,-5.4)} \dotat{(9.45,-7.1)} \dotat{(9.25,-7.9)}
+  \node[lab,anchor=south] at (8.3,9.45) {\Lo{InstrD}, \Lo{PCD}, \Lo{PCPlus4D} (regroup)};
+  % instructions of the pair to the Issue Unit
+  \draw[n] (9.85,5.4) -- (9.85,\yIUt);  \dotat{(9.85,5.4)}
+  \draw[n] (9.65,-5.4) -- (9.65,\yIUt);
+\fi
+
+% ---------------- branch unit (single, shared) ----------------
+% takes the operands of the lane holding the branch/jump (BrLane = BranchE_1 + JumpE_1):
+% one comparator (SrcA = SrcB) and one target adder (PC + ImmExt)
+\draw[line width=1.1pt,bru,rounded corners=4pt,fill=white] (25.8,-1.15) rectangle (28.4,1.15);
+\node[lab,bru,font=\fontsize{7}{7}\selectfont\bfseries,align=center] at (27.1,0.45) {Branch Unit};
+\node[bit,align=center] at (27.1,-0.25) {lane mux $\cdot$ A = B\\PC + Imm};
+\foreach \x/\t in {26.1/PC,26.4/Imm,26.7/A,27.0/B,27.6/Br,28.0/J} {
+  \node[bit,anchor=north,font=\fontsize{3.5}{3.5}\selectfont] at (\x,1.13) {\t};
+  \node[bit,anchor=south,font=\fontsize{3.5}{3.5}\selectfont] at (\x,-1.13) {\t};
+}
+\draw[w] (28.4,0.4) -- (28.9,0.4) -- (28.9,13.2) -- (0.9,13.2) -- (0.9,0.3) -- (pm-1);
+\node[lab,anchor=south west] at (2.0,13.2) {PCTargetE};
+\draw[c] (28.4,0) -- (29.2,0) -- (29.2,13.5) -- (1.5,13.5) -- (pm-t);
+\ifHaz \draw[h] (29.2,0) -- (29.2,\yHUt);  \dotat{(29.2,0)} \fi
+\node[lab,ctl,anchor=south west] at (1.6,13.5) {PCSrcE = BranchE$\cdot$(SrcA = SrcB) + JumpE};
+
+% ---------------- data memory (single port) ----------------
+\Mux{da}{31.6}{0.45}{2}{0.3}{-1}
+\Mux{dw}{31.6}{-0.45}{2}{0.3}{-1}
+\draw[w] (31.0,4.4) -- (31.0,0.6) -- (da-0);    \dotat{(31.0,4.4)}
+\draw[w] (\xEM+0.175,3.0) -- (30.4,3.0) -- (30.4,-0.3) -- (dw-0);
+\draw[w] (30.7,-4.4) -- (30.7,0.3) -- (da-1);   \dotat{(30.7,-4.4)}
+\draw[w] (\xEM+0.175,-3.0) -- (31.0,-3.0) -- (31.0,-0.6) -- (dw-1);
+\draw[blk] (32.3,-1.0) rectangle (34.5,1.0);
+\node[ttl] at (33.45,-0.05) {Data\\Memory};
+\node[lab,anchor=west] at (32.3,0.45) {A}; \node[lab,anchor=west] at (32.3,-0.45) {WD};
+\node[lab,anchor=east] at (34.5,0) {RD}; \node[bit,anchor=north] at (34.05,1.0) {WE};
+\draw[line width=0.5pt] (32.68,1.0) -- (32.8,0.85) -- (32.92,1.0);
+\draw[w] (da-o) -- (32.3,0.45);
+\draw[w] (dw-o) -- (32.3,-0.45);
+\draw[c] (da-t) -- (31.6,1.15) node[lab,ctl,anchor=south west,pos=1] {MemLaneM};
+\draw[c] (dw-b) -- (31.6,-1.15) node[lab,ctl,anchor=north west,pos=1] {MemLaneM};
+% MemWrite = MemWriteM_0 + MemWriteM_1
+\node[or gate, inputs=nn, rotate=-90, anchor=output] (gmw) at (34.05,6.4) {};
+\draw[c] (30.6,11.1) -| (gmw.input 1);
+\draw[c] (30.6,-11.1) -- (31.2,-11.1) -- (31.2,7.2) -| (gmw.input 2);
+\draw[c] (gmw.output) -- (34.05,1.0);
+\node[lab,ctl,anchor=west] at (34.1,5.7) {MemWriteM};
+% read data to both lanes (only the lane with the lw selects it)
+\draw[w] (34.5,0) -- (35.25,0) -- (35.25,5.0) -- (\xMW-0.175,5.0);
+\draw[w] (35.25,0) -- (35.25,-5.0) -- (\xMW-0.175,-5.0);  \dotat{(35.25,0)}
+\node[lab,anchor=north west,rotate=90] at (35.27,2.5) {ReadDataM};
+
+% ---------------- HAZARD UNIT and ISSUE UNIT ----------------
+% names of the vertical signals, rotated, just above the hazard unit
+\newcommand{\hzl}[3]{\node[lab,#3,font=\fontsize{6}{6}\selectfont,anchor=west,rotate=90] at (#1-0.1,\yHUt+0.05) {#2};}
+\ifFwd
+  \draw[line width=1.1pt,hzd,rounded corners=5pt] (-1.0,\yHUb) rectangle (40.6,\yHUt);
+  \node[lab,hzd,font=\fontsize{9}{9}\selectfont\bfseries] at (24,{(\yHUt+\yHUb)/2}) {Hazard Unit};
+  % forwarding: inputs and outputs
+  \draw[h] (20.2,\yHUt) -- (20.2,2.5) -- (20.6,2.5) -- (fa0-b);     % ForwardAE_0
+  \draw[h] (20.6,\yHUt) -- (fa1-b);                     % ForwardAE_1
+  \draw[h] (21.0,\yHUt) -- (21.0,2.5) -- (21.3,2.5) -- (fb0-b);     % ForwardBE_0
+  \draw[h] (21.3,\yHUt) -- (fb1-b);                     % ForwardBE_1
+  \hzl{17.4}{\Lz{Rs2E}}{hzd}
+  \hzl{17.7}{\Lz{Rs1E}}{hzd}
+  \hzl{18.0}{\Lo{Rs1E}}{hzd}
+  \hzl{18.3}{\Lo{Rs2E}}{hzd}
+  \hzl{20.2}{\Lz{ForwardAE}}{hzd}
+  \hzl{20.6}{\Lo{ForwardAE}}{hzd}
+  \hzl{21.0}{\Lz{ForwardBE}}{hzd}
+  \hzl{21.3}{\Lo{ForwardBE}}{hzd}
+  \hzl{34.7}{\Lz{RdM}}{hzd}
+  \hzl{35.0}{\Lz{RegWriteM}}{hzd}
+  \hzl{35.5}{\Lo{RdM}}{hzd}
+  \hzl{35.8}{\Lo{RegWriteM}}{hzd}
+  \hzl{36.6}{\Lz{RdW}}{hzd}
+  \hzl{36.9}{\Lz{RegWriteW}}{hzd}
+  \hzl{37.2}{\Lo{RdW}}{hzd}
+  \hzl{37.5}{\Lo{RegWriteW}}{hzd}
+\fi
+\ifIssue
+  \draw[line width=1.1pt,new,rounded corners=5pt,fill=white] (9.4,\yIUb) rectangle (16.2,\yIUt);
+  \node[lab,new,font=\fontsize{8}{8}\selectfont\bfseries] at (12.6,-14.0) {Issue Unit};
+  \node[bit,new,align=center] at (12.6,-14.45) {RAW / memory / branch conflict in the pair, load-use};
+  \node[bit,new,anchor=south east] at (15.25,\yIUt) {\Lz{RdE}\,\Lo{RdE}\,\Lz{ResultSrcE}[0]\,\Lo{ResultSrcE}[0]};
+  \draw[n,-latex] (14.4,\yIUb) -- (14.4,\yHUt) node[lab,new,pos=0.5,right] {IssueOneD};
+  % RegroupD: one vertical, each select comes into the bottom of its mux with a short stem
+  \draw[h] (6.55,\yHUt) -- (6.55,8.55) -- (7.5,8.55) -- (rq0-t);
+  \draw[h] (6.55,6.35)  -- (7.5,6.35)  -- (rp0-b);       \dotat{(6.55,6.35)}
+  \draw[h] (6.55,4.6)   -- (7.5,4.6)   -- (ri0-b);       \dotat{(6.55,4.6)}
+  \draw[h] (6.55,-6.2)  -- (7.5,-6.2)  -- (ri1-b);       \dotat{(6.55,-6.2)}
+  \draw[h] (6.55,-6.4)  -- (7.5,-6.4)  -- (rp1-t);       \dotat{(6.55,-6.4)}
+  \draw[h] (6.55,-8.45) -- (7.5,-8.45) -- (rq1-b);       \dotat{(6.55,-8.45)}
+  \draw[h] (6.55,-8.6) -- (0.3,-8.6) -- (sq-b);          \dotat{(6.55,-8.6)}
+  \hzl{6.55}{RegroupD}{hzd}
+\fi
+\ifFlushEone
+  \draw[h] (\xDE,\yHUt) -- (\xDE,-12.4);                % FlushE_1
+  \hzl{\xDE}{\Lo{FlushE}}{hzd}
+\fi
+\ifHaz
+  \draw[n,-latex] (11.0,\yIUb) -- (11.0,\yHUt) node[lab,new,pos=0.5,left] {\Lz{LoadUseD}};
+  \draw[h] (2.7,\yHUt) -- (2.7,-0.6);                    % StallF
+  \draw[h] (8.88,\yHUt) -- (8.88,-8.4);                  % StallD
+  \draw[h] (9.12,\yHUt) -- (9.12,-8.4);                  % FlushD
+  \draw[h] (16.6,\yHUt) -- (16.6,2.5) -- (\xDE,2.5) -- (\xDE,2.7);   % FlushE_0
+  \draw[h] (\xEM,\yHUt) -- (\xEM,-12.4);                % FlushM_1
+  % TakenE_0 (from the branch unit) also enters the hazard unit (FlushM_1)
+  \draw[h] (28.4,-0.4) -- (29.45,-0.4) -- (29.45,\yHUt);
+  \hzl{2.7}{StallF}{hzd}
+  \hzl{8.88}{StallD}{hzd}
+  \hzl{9.12+0.22}{FlushD}{hzd}
+  \hzl{16.6}{\Lz{FlushE}}{hzd}
+  \hzl{29.2}{PCSrcE}{hzd}
+  \hzl{29.45}{\Lz{TakenE}}{hzd}
+  \hzl{\xEM}{\Lo{FlushM}}{hzd}
+\fi
+\end{tikzpicture}

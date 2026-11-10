@@ -1,0 +1,15 @@
+% Preamble shared by every view of the dual-issue datapath (proc-*.tex).
+\usepackage{xfp}
+\usepackage[T1]{fontenc}
+\usepackage{tgheros}
+\renewcommand{\familydefault}{\sfdefault}
+\input{common}
+
+% layers of the figure (they are cumulative, in the order of the guide):
+%   Fwd   : forwarding bus between lanes, 5-input muxes and the hazard unit (forwarding only)
+%   Issue : issue unit, regroup muxes in front of IF/ID, PC+4 / PC+8 selection, RegroupD, FlushE_1
+%   Haz   : stalls and flushes (StallF, StallD, FlushD, FlushE_0, FlushM_1, LoadUseD_0, PCSrcE / TakenE_0)
+\newif\ifFwd   \Fwdtrue
+\newif\ifIssue \Issuetrue
+\newif\ifHaz   \Haztrue
+% optional clipping rectangle for the zoomed views: \def\dpclip{(x1,y1) rectangle (x2,y2)}

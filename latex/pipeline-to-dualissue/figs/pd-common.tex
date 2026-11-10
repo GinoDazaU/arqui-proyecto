@@ -1,0 +1,101 @@
+% Abstract pipeline diagrams (style of Harris & Harris Fig. 7.48 / 7.69).
+%   columns = cycles, rows = instructions; each cell is the hardware the instruction uses.
+% Usage inside a tikzpicture:
+%   \pdHeader{ncycles}{nrows}
+%   \pdLabel{row}{address}{assembly}{lane}       left column (lane: 0, 1 or empty)
+%   \pdInstr{row}{first cycle}{tokens}           tokens, one per cycle:
+%       F D E M W : IM, RF (read), ALU, DM, RF (write)
+%       S         : waits in Decode (stall / not issued), hatched RF
+%       Q         : waits in Fetch, hatched IM
+%       f d e     : flushed (wrong path / annulled), grey and crossed
+%       -         : nothing
+%   \pdPair{row of slot 0}{label}                bracket joining the two rows of a pair
+%   \pdFwd{row}{cycle}{row}{cycle}               forwarding arrow (from the end of the producer
+%                                                stage to the ALU of the consumer)
+%   \pdBubble{row}{first cycle}{last cycle}      bubble inserted in Execute and later
+%   \pdNote{row}{cycle}{text}                    note to the right of a cell
+\usetikzlibrary{patterns,arrows.meta}
+\definecolor{pdfill}{RGB}{214,231,245}   % used half of a stage (light blue, as in the book)
+\definecolor{pdgrey}{RGB}{170,170,170}
+
+\newcommand{\pdcw}{1.18}   % cycle width
+\newcommand{\pdrh}{0.66}   % row height
+\tikzset{
+  pdbox/.style  = {draw, line width=0.6pt, minimum width=0.62cm, minimum height=0.40cm,
+                   inner sep=0pt, font=\fontsize{5.5}{5.5}\selectfont\sffamily},
+  pdtxt/.style  = {font=\fontsize{7}{7}\selectfont\ttfamily, inner sep=1pt},
+  pdnum/.style  = {font=\fontsize{7}{7}\selectfont\sffamily, inner sep=1pt},
+  pdnote/.style = {font=\fontsize{6.5}{6.5}\selectfont\sffamily, inner sep=1pt, align=left},
+}
+\newcommand{\pdX}[1]{\fpeval{(#1)*\pdcw}}
+\newcommand{\pdY}[1]{\fpeval{-(#1)*\pdrh}}
+
+\newcommand{\pdHeader}[2]{%
+  \foreach \c in {1,...,#1} {
+    \node[pdnum] at (\pdX{\c},0.55) {\c};
+    \draw[pdgrey, densely dotted, line width=0.3pt] (\pdX{\c-0.5},0.35) -- (\pdX{\c-0.5},{-(#2-0.5)*\pdrh});
+  }
+  \draw[pdgrey, densely dotted, line width=0.3pt] (\pdX{#1+0.5},0.35) -- (\pdX{#1+0.5},{-(#2-0.5)*\pdrh});
+  \node[pdnum, anchor=east] at (\pdX{0.4},0.55) {ciclo};
+}
+\newcommand{\pdLabel}[4]{%
+  \node[pdtxt, anchor=east] at (-2.75,\pdY{#1}) {#2};
+  \node[pdtxt, anchor=west] at (-2.65,\pdY{#1}) {#3};
+  \ifx&#4&\else\node[pdnum, anchor=east, font=\fontsize{5.5}{5.5}\selectfont\sffamily] at (\pdX{0.42},\pdY{#1}) {v#4};\fi
+}
+\newcommand{\pdPair}[2]{%
+  \draw[line width=0.5pt] (-3.55,{\pdY{#1}+0.18}) -- (-3.65,{\pdY{#1}+0.18}) -- (-3.65,{\pdY{#1+1}-0.18}) -- (-3.55,{\pdY{#1+1}-0.18});
+  \node[pdnum, anchor=east, font=\fontsize{5.5}{5.5}\selectfont\sffamily, align=right] at (-3.7,{\pdY{#1+0.5}}) {#2};
+}
+
+% one cell: \pdCell{row}{cycle}{token}
+\newcommand{\pdCell}[3]{\csname pdT#3\endcsname{\pdX{#2}}{\pdY{#1}}}
+\newcommand{\pdBoxAt}[4]{% x, y, text, half to fill (l / r / a / n)
+  \node[pdbox] (pdb) at (#1,#2) {};
+  \if#4l\fill[pdfill] (pdb.south west) rectangle (pdb.north);\fi
+  \if#4r\fill[pdfill] (pdb.south) rectangle (pdb.north east);\fi
+  \if#4a\fill[pdfill] (pdb.south west) rectangle (pdb.north east);\fi
+  \node[pdbox] at (#1,#2) {#3};
+}
+\newcommand{\pdTF}[2]{\pdBoxAt{#1}{#2}{IM}{a}}
+\newcommand{\pdTD}[2]{\pdBoxAt{#1}{#2}{RF}{r}}
+\newcommand{\pdTW}[2]{\pdBoxAt{#1}{#2}{RF}{l}}
+\newcommand{\pdTM}[2]{\pdBoxAt{#1}{#2}{DM}{a}}
+\newcommand{\pdTE}[2]{%
+  \draw[line width=0.6pt, fill=pdfill] (#1-0.3,#2-0.22) -- (#1+0.3,#2-0.1) -- (#1+0.3,#2+0.1) -- (#1-0.3,#2+0.22)
+     -- (#1-0.3,#2+0.06) -- (#1-0.2,#2) -- (#1-0.3,#2-0.06) -- cycle;
+  \node[font=\fontsize{5}{5}\selectfont\sffamily] at (#1+0.04,#2) {ALU};
+}
+\newcommand{\pdTS}[2]{%
+  \node[pdbox, pattern=north east lines, pattern color=pdgrey] at (#1,#2) {};
+  \node[pdbox, fill=white, minimum width=0.3cm, minimum height=0.2cm, draw=none] at (#1,#2) {RF};
+}
+\newcommand{\pdTQ}[2]{%
+  \node[pdbox, pattern=north east lines, pattern color=pdgrey] at (#1,#2) {};
+  \node[pdbox, fill=white, minimum width=0.3cm, minimum height=0.2cm, draw=none] at (#1,#2) {IM};
+}
+\newcommand{\pdGrey}[3]{%
+  \node[pdbox, draw=pdgrey, text=pdgrey] at (#1,#2) {#3};
+  \draw[pdgrey, line width=0.5pt] (#1-0.31,#2-0.2) -- (#1+0.31,#2+0.2);
+}
+\newcommand{\pdTf}[2]{\pdGrey{#1}{#2}{IM}}
+\newcommand{\pdTd}[2]{\pdGrey{#1}{#2}{RF}}
+\newcommand{\pdTe}[2]{\pdGrey{#1}{#2}{ALU}}
+\expandafter\newcommand\csname pdT-\endcsname[2]{}
+
+\newcommand{\pdInstr}[3]{%
+  \foreach \t [count=\i from 0] in {#3} {
+    \pgfmathtruncatemacro\cc{#2+\i}
+    \pdCell{#1}{\cc}{\t}
+  }
+}
+\newcommand{\pdFwd}[4]{%
+  \draw[-{Stealth[length=1.6mm]}, ctl, line width=0.9pt]
+    ({\pdX{#2}+0.3},\pdY{#1}) to[out=0,in=180] ({\pdX{#4}-0.3},\pdY{#3});
+}
+\newcommand{\pdBubble}[3]{%
+  \draw[pdgrey, fill=pdgrey!25, rounded corners=4pt, line width=0.4pt]
+    ({\pdX{#2}-0.42},{\pdY{#1}-0.2}) rectangle ({\pdX{#3}+0.42},{\pdY{#1}+0.2});
+  \node[pdnum, text=black!70] at ({(\pdX{#2}+\pdX{#3})/2},\pdY{#1}) {burbuja};
+}
+\newcommand{\pdNote}[3]{\node[pdnote, anchor=west] at ({\pdX{#2}+0.45},\pdY{#1}) {#3};}

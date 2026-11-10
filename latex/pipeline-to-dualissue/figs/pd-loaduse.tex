@@ -1,0 +1,22 @@
+% Load-use with the lw in lane 1: the whole pair waits one cycle (tb/programs/e2_3_memory.mem).
+\documentclass[tikz,border=3mm]{standalone}
+\usepackage{xfp}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{tgheros}
+\renewcommand{\familydefault}{\sfdefault}
+\input{common}
+\input{pd-common}
+\begin{document}
+\begin{tikzpicture}
+\pdHeader{8}{6}
+\pdLabel{0}{24}{addi x9, x0, 9}{0}   \pdInstr{0}{1}{F,D,E,M,W}
+\pdLabel{1}{28}{lw   x4, 4(x0)}{1}   \pdInstr{1}{1}{F,D,E,M,W}
+\pdBubble{2}{4}{6}
+\pdLabel{3}{32}{add  x5, x3, x4}{0}  \pdInstr{3}{2}{F,D,S,E,M,W}
+\pdLabel{4}{36}{addi x6, x1, 1}{1}   \pdInstr{4}{2}{F,D,S,E,M,W}
+\pdLabel{5}{40}{sw   x5, 8(x0)}{0}   \pdInstr{5}{3}{F,Q,D,E,M,W}
+\pdFwd{1}{4}{3}{5} \pdFwd{3}{5}{5}{6}
+\pdNote{2}{6}{en las dos v\'ias}
+\end{tikzpicture}
+\end{document}

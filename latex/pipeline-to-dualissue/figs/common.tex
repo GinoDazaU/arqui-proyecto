@@ -1,0 +1,99 @@
+% Shared TikZ helpers for the datapath figures (Harris & Harris style, ch. 7.5).
+%   32-bit buses: thick black; narrow fields (Rs/Rd): thin black;
+%   control / hazard signals: thin blue; additions of the dual-issue design: green.
+\usetikzlibrary{calc}
+\usetikzlibrary{circuits.logic.US}
+
+\definecolor{ctl}{RGB}{11,111,184}    % control unit / hazard unit (blue, as in the book)
+\definecolor{new}{RGB}{21,128,61}     % elements added for the dual-issue design
+\definecolor{hzd}{RGB}{217,95,2}     % hazard unit and its wires (orange)
+\definecolor{bru}{RGB}{124,58,237}   % shared branch unit (purple)
+
+\tikzset{
+  w/.style   = {line width=1.1pt},               % 32-bit datapath wire
+  nw/.style  = {line width=0.45pt},              % narrow datapath field (5 bits)
+  c/.style   = {line width=0.45pt, ctl},         % control wire
+  n/.style   = {line width=0.45pt, new},         % dual-issue control wire
+  h/.style   = {line width=0.45pt, hzd},         % hazard unit wire
+  blk/.style = {line width=1.1pt, fill=white},
+  lab/.style = {font=\fontsize{6.5}{6.5}\selectfont, inner sep=1pt},
+  bit/.style = {font=\fontsize{5}{5}\selectfont, inner sep=0.6pt},
+  mxl/.style = {font=\fontsize{4.3}{4.3}\selectfont, inner sep=0.4pt},
+  ttl/.style = {font=\fontsize{7.5}{7.5}\selectfont\bfseries, inner sep=1pt, align=center},
+}
+
+% wire junction (T joints)
+\newcommand{\dotat}[1]{\fill #1 circle (0.045);}
+
+% \Mux[labels]{name}{x}{yc}{n}{d}{s}
+%   vertical n:1 multiplexer pointing right, inputs spaced d.
+%   s = +1: input 0 is the lowest one; s = -1: input 0 is the highest one.
+%   labels: optional comma list written inside (default 0..n-1).
+%   anchors: name-0 .. name-(n-1), name-o (output),
+%            name-t / name-b (select, top / bottom),
+%            name-so / name-si (select on the side of the last / first input)
+\newcommand{\muxhw}{0.2}
+\newcommand{\Mux}[7][]{%
+  \pgfmathsetmacro\mh{(#5*#6+0.2)/2}%
+  \draw[blk] (#3-\muxhw,#4-\mh) -- (#3-\muxhw,#4+\mh) -- (#3+\muxhw,#4+\mh-0.13)
+             -- (#3+\muxhw,#4-\mh+0.13) -- cycle;
+  \pgfmathtruncatemacro\mlast{#5-1}%
+  \foreach \i in {0,...,\mlast} {
+    \pgfmathsetmacro\my{#4 + #7*(\i-(#5-1)/2)*#6}
+    \coordinate (#2-\i) at (#3-\muxhw,\my);
+  }
+  \def\mlabs{#1}%
+  \ifx\mlabs\empty
+    \foreach \i in {0,...,\mlast} {
+      \node[mxl, anchor=west] at ($(#2-\i)+(0.02,0)$) {\i};
+    }
+  \else
+    \foreach \lb [count=\i from 0] in {#1} {
+      \node[mxl, anchor=west] at ($(#2-\i)+(0.02,0)$) {\lb};
+    }
+  \fi
+  \coordinate (#2-o) at (#3+\muxhw,#4);
+  \coordinate (#2-t) at (#3,#4+\mh-0.065);
+  \coordinate (#2-b) at (#3,#4-\mh+0.065);
+  \coordinate (#2-so) at (#3,#4+#7*\mh-#7*0.065);
+  \coordinate (#2-si) at (#3,#4-#7*\mh+#7*0.065);
+}
+
+% \Alu{name}{x}{ylo}{yhi}{text}: ALU / adder shape (chevron with notch),
+%   output name-o; text is written horizontally (use \AluV for a rotated "ALU")
+\newcommand{\AluShape}[4]{%
+  \pgfmathsetmacro\ac{(#3+#4)/2}\pgfmathsetmacro\ah{#4-#3}%
+  \draw[blk] (#2,#3) -- (#2+0.9,#3+0.25*\ah) -- (#2+0.9,#4-0.25*\ah) -- (#2,#4)
+             -- (#2,\ac+0.12*\ah) -- (#2+0.2,\ac) -- (#2,\ac-0.12*\ah) -- cycle;
+  \coordinate (#1-o) at (#2+0.9,\ac);
+}
+\newcommand{\Alu}[5]{%
+  \AluShape{#1}{#2}{#3}{#4}%
+  \node[lab, font=\fontsize{7}{7}\selectfont\bfseries] at (#2+0.58,\ac) {#5};
+}
+\newcommand{\AluV}[5]{%
+  \AluShape{#1}{#2}{#3}{#4}%
+  \node[lab, font=\fontsize{8}{8}\selectfont, rotate=90] at (#2+0.6,\ac) {#5};
+}
+
+% \PipeReg{x}{yin}{ymid}{yout}{note}: pipeline register of one lane.
+%   yin = edge next to the middle of the figure, yout = outer edge (clock side),
+%   ymid = boundary between the datapath part (black) and the control part (blue).
+%   As in the book the clock is always on the top edge (labelled CLK only when the
+%   top edge is the outer one) and the note (e.g. CLR) is written at the bottom edge,
+%   where the hazard unit signal comes in.
+\newcommand{\PipeReg}[5]{%
+  \draw[blk] (#1-0.175,#2) rectangle (#1+0.175,#3);
+  \draw[line width=1.1pt, ctl, fill=white] (#1-0.175,#3) rectangle (#1+0.175,#4);
+  \pgfmathsetmacro\pt{max(#2,#4)}\pgfmathsetmacro\pb{min(#2,#4)}%
+  \draw[line width=0.5pt] (#1-0.12,\pt) -- (#1,\pt-0.15) -- (#1+0.12,\pt);
+  \ifdim #4pt>#2pt \node[lab, anchor=south] at (#1,\pt+0.05) {CLK};\fi
+  \node[bit, rotate=90, anchor=center] at (#1,\pb+0.3) {#5};
+}
+
+% \Bar{x}{ylo}{yhi}: plain register (clock on the top edge)
+\newcommand{\Bar}[3]{%
+  \pgfmathsetmacro\bt{max(#2,#3)}%
+  \draw[blk] (#1-0.175,#2) rectangle (#1+0.175,#3);
+  \draw[line width=0.5pt] (#1-0.12,\bt) -- (#1,\bt-0.15) -- (#1+0.12,\bt);
+}

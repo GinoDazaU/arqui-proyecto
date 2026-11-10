@@ -1,0 +1,29 @@
+% Taken branches in slot 0 and in slot 1 (tb/programs/e2_4_branch.mem).
+\documentclass[tikz,border=3mm]{standalone}
+\usepackage{xfp}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{tgheros}
+\renewcommand{\familydefault}{\sfdefault}
+\input{common}
+\input{pd-common}
+\begin{document}
+\begin{tikzpicture}
+\pdHeader{11}{10}
+\pdLabel{0}{16}{beq  x1, x2, t1}{0}     \pdInstr{0}{1}{F,D,E,M,W}
+\pdLabel{1}{20}{addi x3, x0, 99}{1}     \pdInstr{1}{1}{F,D,e}
+\pdLabel{2}{24}{addi x3, x0, 99}{}      \pdInstr{2}{2}{F,d}
+\pdLabel{3}{28}{addi x5, x0, 2}{}       \pdInstr{3}{2}{F,d}
+\pdLabel{4}{28}{addi x5, x0, 2 (t1)}{0}  \pdInstr{4}{4}{F,D,E,M,W}
+\pdLabel{5}{32}{beq  x1, x2, t2}{1}     \pdInstr{5}{4}{F,D,E,M,W}
+\pdLabel{6}{36}{addi x3, x0, 99}{}      \pdInstr{6}{5}{F,d}
+\pdLabel{7}{40}{addi x3, x0, 99}{}      \pdInstr{7}{5}{F,d}
+\pdLabel{8}{44}{beq  x1, x0, t3 (t2)}{0} \pdInstr{8}{7}{F,D,E,M,W}
+\pdLabel{9}{48}{addi x6, x0, 3}{1}      \pdInstr{9}{7}{F,D,E,M,W}
+\pdPair{0}{par} \pdPair{4}{par} \pdPair{8}{par}
+\pdNote{1}{3}{\textbf{FlushM\textsubscript{1}}: el compa\~nero m\'as joven se anula en Execute}
+\pdNote{3}{3}{\textbf{FlushE\textsubscript{0}, FlushE\textsubscript{1}}: el par en Decode se descarta}
+\pdNote{5}{8}{tomado en el slot 1: addi x5 (m\'as antiguo) sigue}
+\pdNote{7}{6}{\textbf{FlushE\textsubscript{0}, FlushE\textsubscript{1}}}
+\end{tikzpicture}
+\end{document}

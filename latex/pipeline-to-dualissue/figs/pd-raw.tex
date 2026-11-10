@@ -1,0 +1,23 @@
+% RAW inside the pair: only slot 0 issues and addi x2 is regrouped (tb/programs/e2_2_raw_forward.mem).
+\documentclass[tikz,border=3mm]{standalone}
+\usepackage{xfp}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{tgheros}
+\renewcommand{\familydefault}{\sfdefault}
+\input{common}
+\input{pd-common}
+\begin{document}
+\begin{tikzpicture}
+\pdHeader{8}{5}
+\pdLabel{0}{0}{addi x1, x0, 5}{0}   \pdInstr{0}{1}{F,D,E,M,W}
+\pdLabel{1}{4}{addi x2, x1, 1}{0}   \pdInstr{1}{1}{F,D,S,E,M,W}
+\pdLabel{2}{8}{addi x3, x0, 2}{1}   \pdInstr{2}{2}{F,D,E,M,W}
+\pdLabel{3}{12}{add  x4, x2, x3}{0} \pdInstr{3}{3}{F,D,E,M,W}
+\pdLabel{4}{16}{sub  x5, x1, x3}{1} \pdInstr{4}{3}{F,D,E,M,W}
+\pdFwd{0}{3}{1}{4}
+\pdFwd{1}{4}{3}{5} \pdFwd{2}{4}{3}{5}
+\pdFwd{0}{4}{4}{5} \pdFwd{2}{4}{4}{5}
+\pdNote{1}{6.6}{RAW con el slot 0: espera\\en Decode (regroup)}
+\end{tikzpicture}
+\end{document}
