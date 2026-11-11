@@ -70,9 +70,9 @@
 \vspace{1ex}
 
 Un procesador segmentado de cinco etapas puede completar, como máximo, una instrucción por
-ciclo. Para superar ese límite hay que ejecutar varias instrucciones a la vez. Este
-documento parte de un pipeline RISC-V de cinco etapas con manejo completo de hazards y lo
-transforma, paso a paso, en un procesador \emph{superescalar dual-issue en orden}, capaz de
+ciclo. Para superar ese límite hay que ejecutar varias instrucciones a la vez. Partimos
+de un pipeline RISC-V de cinco etapas con manejo completo de hazards y lo transformamos,
+paso a paso, en un procesador \emph{superescalar dual-issue en orden}, capaz de
 buscar, decodificar y ejecutar hasta \emph{dos} instrucciones por ciclo.
 
 A partir de la sección~\ref{sec:lanes}, cada sección agrega una parte al datapath y
@@ -136,11 +136,11 @@ El pipeline aprovecha el \emph{paralelismo temporal}: varias instrucciones ocupa
 distintas al mismo tiempo, pero como máximo una entra a Execute en cada ciclo. Un
 procesador superescalar agrega \emph{paralelismo espacial}: replica el hardware de
 ejecución para que varias instrucciones avancen juntas por la misma etapa. El procesador
-de este documento es de dos vías (\emph{two-way}) y \emph{en orden}: las instrucciones se
+que diseñamos es de dos vías (\emph{two-way}) y \emph{en orden}: las instrucciones se
 emiten en el orden del programa y una instrucción más joven nunca se adelanta a una más
 antigua. Con dos vías, el IPC ideal es~2.
 
-\paragraph{Terminología.} En el resto del documento se usan estos términos.
+\paragraph{Terminología.} En adelante usamos estos términos:
 \begin{itemize}
   \item \textbf{Par}: las dos instrucciones consecutivas que se buscan y decodifican juntas.
   \item \textbf{Slot 0 / slot 1}: posición dentro del par. El slot~0 contiene siempre la
@@ -157,7 +157,7 @@ antigua. Con dos vías, el IPC ideal es~2.
 \paragraph{Decisiones de diseño.} No conviene replicar todos los recursos. Una ALU es
 barata, mientras que una memoria de datos de dos puertos o una segunda lógica de
 resolución de saltos son caras y se usarían poco: en un programa típico, rara vez dos
-instrucciones consecutivas acceden ambas a memoria o son ambas saltos. Por eso se fijan los
+instrucciones consecutivas acceden ambas a memoria o son ambas saltos. Por eso fijamos los
 recursos de la Tabla~\ref{tab:resources}: casi todo el datapath se replica, pero la
 memoria de datos y la \emph{Branch Unit}, que resuelve los saltos, son
 \emph{compartidas}. Al compartirlas, hace falta una unidad que decida, en cada ciclo, qué
@@ -198,8 +198,8 @@ simultáneamente y el forwarding cruza entre vías}
 \label{fig:pd-pairs}
 \end{figure}
 
-La Fig.~\ref{fig:pd-pairs} muestra el caso ideal: tres pares sin dependencias entre sus
-instrucciones entran a Execute en ciclos consecutivos. En el ciclo~5, \ins{add x5} (vía~0)
+La Fig.~\ref{fig:pd-pairs} muestra el caso ideal: tres pares sin dependencias dentro de
+cada par entran a Execute en ciclos consecutivos. En el ciclo~5, \ins{add x5} (vía~0)
 recibe \ins{x1} de su propia vía y \ins{x2} de la vía~1, mientras que \ins{sub x6}
 (vía~1) recibe \ins{x3} de la vía~0. Es decir, el forwarding ahora \emph{cruza entre
 vías} (sección~\ref{sec:forward}).
@@ -257,7 +257,7 @@ en un solo ciclo:
 Igual que en el pipeline de partida, la escritura ocurre en el flanco de bajada del
 reloj. Aparece un caso nuevo: ambas vías pueden escribir \emph{el mismo} registro en el
 mismo ciclo (dependencia WAW dentro del par). Como la vía~1 contiene siempre la instrucción más
-joven, su valor es el que debe prevalecer: el puerto A6 se escribe después que A3 y, por
+joven, su valor es el que debe prevalecer: el puerto A6 se escribe después de A3 y, por
 lo tanto, tiene prioridad.
 
 \subsection{Las dos vías de Execute, Memory y Writeback}
@@ -362,9 +362,9 @@ En el pipeline de partida, el salto se resuelve en Execute mediante
 $\sig{PCSrcE} = \sig{BranchE}\cdot\sig{ZeroE} + \sig{JumpE}$: la ALU compara los operandos
 del \ins{beq} (señal \sig{Zero}) y un sumador dedicado calcula \sig{PCTargetE}. Replicar
 esta lógica en cada vía produciría dos unidades de resolución, de las cuales nunca se
-usaría más de una por ciclo. En su lugar, el diseño agrega un módulo único, la
+usaría más de una por ciclo. En su lugar, agregamos un módulo único, la
 \textbf{Branch Unit}, ubicado en el eje central del datapath (Fig.~\ref{fig:zoom-branch}).
-Funciona en tres partes:
+Tiene tres partes:
 \begin{itemize}
   \item \textbf{Selección de la vía.} Como la Issue Unit nunca emite dos saltos en el
         mismo par, a lo sumo una vía tiene activa \sig{Branch} o \sig{Jump}. La señal
@@ -440,7 +440,7 @@ Código & Fuente & Condición (en orden de prioridad) \\
 buscado, tiene prioridad Memory, porque guarda el valor más reciente. Con dos vías se
 agrega una segunda regla: \emph{dentro de una misma etapa tiene prioridad la vía~1},
 porque contiene la instrucción más joven del par. El orden resultante es el de la tabla:
-M$_1$, M$_0$, W$_1$, W$_0$. Por ejemplo, en el siguiente código:
+M$_1$, M$_0$, W$_1$, W$_0$. Por ejemplo, consideremos el siguiente código:
 \begin{center}\small
 \begin{tabular}{@{}ll@{}}
 \ins{addi x3, x0, 10} & \# par: vía 0 \\
@@ -609,8 +609,8 @@ Hay dos alternativas:
   \item \emph{reagrupar}: la instrucción en espera pasa a ser el slot~0 del siguiente par,
         que se completa con la instrucción siguiente del programa.
 \end{enumerate}
-La primera es más simple, pero desperdicia un ciclo de cada vía en cada conflicto. El
-diseño adopta la segunda (Fig.~\ref{fig:zoom-fetch}). La Hazard Unit genera
+La primera es más simple, pero desperdicia un ciclo de cada vía en cada conflicto. Adoptamos
+la segunda (Fig.~\ref{fig:zoom-fetch}). La Hazard Unit genera
 \[
   \sig{RegroupD} = \sig{IssueOneD}\cdot\overline{\sig{lwStallD}}\cdot\overline{\sig{PCSrcE}},
 \]
@@ -741,7 +741,7 @@ inserta una burbuja en ambas vías}
 Como en el pipeline de partida, el salto se resuelve en Execute y se predice como no
 tomado. La diferencia es que lo resuelve la Branch Unit, que atiende a la vía en la que
 se encuentre el salto. Cuando el salto se toma (\sig{PCSrcE}), la Branch Unit entrega la
-dirección de destino (\sig{PCTargetE}) a Fetch, y las instrucciones buscadas después del
+dirección de destino (\sig{PCTargetE}) a Fetch. Las instrucciones buscadas después del
 salto pertenecen al camino incorrecto y deben descartarse:
 \begin{itemize}
   \item el par que está en Decode, con \sigk{FlushE}{0} y \sigk{FlushE}{1};
@@ -845,15 +845,15 @@ Replicado & unidad de control, Extend, registros ID/EX, EX/MEM y MEM/WB, ALU,
 Ampliado & memoria de instrucciones (2 lecturas), register file (4 lecturas, 2
            escrituras), registro IF/ID (un par), multiplexores de forwarding (5 fuentes),
            Hazard Unit \\
-Compartido & memoria de datos (un puerto, \sig{MemLaneM}) y Branch Unit (un comparador y
+Compartido & memoria de datos (un puerto, \sig{MemLaneM}) y Branch Unit, nueva (un comparador y
              un sumador de \sig{PCTargetE}; \sig{PCSrcE}, \sigk{TakenE}{0}) \\
-Nuevo & Issue Unit, Branch Unit, multiplexores de reagrupamiento y selección
+Nuevo & Issue Unit, multiplexores de reagrupamiento y selección
         $\sig{PC}+8$ / $\sig{PC}+4$, \sig{RegroupD}, \sigk{FlushE}{1}, \sigk{FlushM}{1} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-En resumen, el paso del pipeline escalar al procesador dual-issue se basa en tres ideas:
+El paso del pipeline escalar al procesador dual-issue se basa en tres ideas:
 \begin{enumerate}
   \item \textbf{El orden queda fijado por la posición.} El slot~0 va siempre a la vía~0 y
         contiene la instrucción más antigua, y el reagrupamiento conserva esta propiedad.
@@ -862,7 +862,7 @@ En resumen, el paso del pipeline escalar al procesador dual-issue se basa en tre
   \item \textbf{Los recursos compartidos se asignan con multiplexores, no se replican.} La
         memoria de datos y la Branch Unit atienden a cualquiera de las dos vías, siempre
         que la Issue Unit garantice que no las solicitan ambas en el mismo ciclo.
-  \item \textbf{Lo que no puede adelantarse, se separa.} El forwarding resuelve las
+  \item \textbf{Lo que no puede adelantarse se separa.} El forwarding resuelve las
         dependencias entre ciclos distintos. Las dependencias dentro del par y los
         conflictos de recursos los resuelve la Issue Unit, que divide el par sin perder
         ni repetir instrucciones.
