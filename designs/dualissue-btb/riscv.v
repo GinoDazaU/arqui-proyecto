@@ -12,7 +12,7 @@ module riscv(input         clk, reset,
   // controller <-> datapath
   wire [31:0] InstrD_0, InstrD_1;
   wire        BranchE_0, JumpE_0, BranchE_1, JumpE_1;  // controller -> branch unit
-  wire        PCSrcE, TakenE_0;                        // branch unit -> hazard unit
+  wire        MispredictE, FlushLane1E;                // branch unit -> hazard unit
   wire        MemLaneM;                                // controller -> datapath
   wire        RegWriteW_0, RegWriteW_1;  // also used by hazard unit
   wire [1:0]  ImmSrcD_0, ImmSrcD_1;
@@ -102,8 +102,8 @@ module riscv(input         clk, reset,
     .InstrD_0    (InstrD_0),
     .InstrD_1    (InstrD_1),
     // to hazard unit (from the branch unit)
-    .PCSrcE      (PCSrcE),
-    .TakenE_0    (TakenE_0),
+    .MispredictE (MispredictE),
+    .FlushLane1E (FlushLane1E),
     // from hazard unit
     .StallF      (StallF),
     .StallD      (StallD),
@@ -166,8 +166,8 @@ module riscv(input         clk, reset,
     .RdM_1         (RdM_1),
     .RdW_1         (RdW_1),
     // from the branch unit and the controller
-    .PCSrcE        (PCSrcE),
-    .TakenE_0      (TakenE_0),
+    .MispredictE   (MispredictE),
+    .FlushLane1E   (FlushLane1E),
     .RegWriteM_0   (RegWriteM_0),
     .RegWriteW_0   (RegWriteW_0),
     .RegWriteM_1   (RegWriteM_1),

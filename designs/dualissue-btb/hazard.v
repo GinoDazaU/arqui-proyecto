@@ -1,9 +1,10 @@
 module hazard(// from datapath
               input  [4:0] Rs1E_0, Rs2E_0, RdM_0, RdW_0,
               input  [4:0] Rs1E_1, Rs2E_1, RdM_1, RdW_1,
+              // from the branch unit
+              input        MispredictE,
+              input        FlushLane1E,
               // from controller
-              input        PCSrcE,
-              input        TakenE_0,
               input        RegWriteM_0, RegWriteW_0,
               input        RegWriteM_1, RegWriteW_1,
               // from issue unit
@@ -47,20 +48,20 @@ module hazard(// from datapath
   `undef FWD
 
   // ================= STALLS, REGROUP AND FLUSHES =================
-  // a taken branch/jump in Execute has priority: the pair in Decode is wrong-path anyway
-  assign lwStallD = LoadUseD_0 & ~PCSrcE;
+  // a mispredicted branch/jump in Execute has priority: the pair in Decode is wrong-path anyway
+  assign lwStallD = LoadUseD_0 & ~MispredictE;
   assign StallD   = lwStallD;
   assign StallF   = lwStallD;
 
   // only slot 0 issues: slot 1 is kept in IF/ID as the new slot 0, PC advances 4
-  assign RegroupD = IssueOneD & ~lwStallD & ~PCSrcE;
+  assign RegroupD = IssueOneD & ~lwStallD & ~MispredictE;
 
-  // taken branch/jump: discard the younger instructions in Fetch and Decode
-  assign FlushD   = PCSrcE;
-  assign FlushE_0 = lwStallD | PCSrcE;             // bubble for the lw stall
-  assign FlushE_1 = lwStallD | PCSrcE | IssueOneD; // bubble also when slot 1 waits
-  // branch in lane 0 taken: the other instruction of its pair (lane 1) is younger
-  // and is annulled; a taken branch in lane 1 keeps lane 0 (older)
-  assign FlushM_1 = TakenE_0;
+  // mispredicted branch/jump: discard the younger instructions in Fetch and Decode
+  assign FlushD   = MispredictE;
+  assign FlushE_0 = lwStallD | MispredictE;             // bubble for the lw stall
+  assign FlushE_1 = lwStallD | MispredictE | IssueOneD; // bubble also when slot 1 waits
+  // mispredicted branch in lane 0: the other instruction of its pair (lane 1) is younger
+  // and is annulled; a branch in lane 1 keeps lane 0 (older)
+  assign FlushM_1 = FlushLane1E;
 
 endmodule
