@@ -1,0 +1,27 @@
+// EF Benchmark - Data-dependent branch without a regular pattern
+// 32 iterations of x = (5x + 3) mod 64, x0 = 7; the inner beq depends on bit 4 of x:
+// the case where the predictor helps least.
+// Expected: MEM[0]=16 [4]=16 [8]=39
+00100193  //   0: addi x3, x0, 1
+02000113  //   4: addi x2, x0, 32        ; iterations
+00000093  //   8: addi x1, x0, 0
+00700293  //  12: addi x5, x0, 7         ; seed
+00000513  //  16: addi x10, x0, 0        ; bit 4 = 0
+00000593  //  20: addi x11, x0, 0        ; bit 4 = 1
+005283B3  //  24: add  x7, x5, x5        ; loop:
+007383B3  //  28: add  x7, x7, x7
+005382B3  //  32: add  x5, x7, x5
+00328293  //  36: addi x5, x5, 3
+03F2F293  //  40: andi x5, x5, 63
+0102F413  //  44: andi x8, x5, 16
+00108093  //  48: addi x1, x1, 1
+00040663  //  52: beq  x8, x0, zero      ; data dependent
+00158593  //  56: addi x11, x11, 1
+0080006F  //  60: jal  x0, next
+00150513  //  64: addi x10, x10, 1       ; zero:
+0020A233  //  68: slt  x4, x1, x2        ; next:
+FC3208E3  //  72: beq  x4, x3, loop      ; loop branch
+00A02023  //  76: sw   x10, 0(x0)
+00B02223  //  80: sw   x11, 4(x0)
+00502423  //  84: sw   x5, 8(x0)
+0000006F  //  88: jal  x0, 0

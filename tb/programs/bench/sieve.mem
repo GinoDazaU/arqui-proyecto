@@ -1,0 +1,43 @@
+// EF Benchmark - Sieve of Eratosthenes, primes below 200
+// a[i] (MEM[4i]) = 1 marks a composite; multiples of p are reached by adding p (no multiply).
+// The inner loop runs a different number of times for every prime p.
+// Expected: MEM[1000]=46 (primes) [1004]=4227 (sum) [1008]=199 (largest)
+00100193  //   0: addi x3, x0, 1
+32000313  //   4: addi x6, x0, 800       ; end of the array (200 words)
+00000093  //   8: addi x1, x0, 0
+0000A023  //  12: sw   x0, 0(x1)         ; init: a[i] = 0
+00408093  //  16: addi x1, x1, 4
+0060A4B3  //  20: slt  x9, x1, x6
+FE348AE3  //  24: beq  x9, x3, init
+00200513  //  28: addi x10, x0, 2        ; p
+00800593  //  32: addi x11, x0, 8        ; 4p (bytes)
+00F00393  //  36: addi x7, x0, 15        ; p < 15 (15 * 15 > 200)
+0005A683  //  40: lw   x13, 0(x11)       ; outer: a[p]
+00368C63  //  44: beq  x13, x3, next     ; composite: skip
+00B58633  //  48: add  x12, x11, x11     ; j = 2p
+00362023  //  52: sw   x3, 0(x12)        ; inner: a[j] = 1
+00B60633  //  56: add  x12, x12, x11     ; j += p
+006624B3  //  60: slt  x9, x12, x6
+FE348AE3  //  64: beq  x9, x3, inner
+00150513  //  68: addi x10, x10, 1       ; next:
+00458593  //  72: addi x11, x11, 4
+007524B3  //  76: slt  x9, x10, x7
+FC348CE3  //  80: beq  x9, x3, outer
+00800093  //  84: addi x1, x0, 8         ; count from i = 2
+00200713  //  88: addi x14, x0, 2        ; i
+00000A13  //  92: addi x20, x0, 0        ; primes
+00000A93  //  96: addi x21, x0, 0        ; sum
+00000B13  // 100: addi x22, x0, 0        ; largest
+0000A683  // 104: lw   x13, 0(x1)        ; count:
+00368863  // 108: beq  x13, x3, skip     ; composite
+001A0A13  // 112: addi x20, x20, 1
+00EA8AB3  // 116: add  x21, x21, x14
+00070B13  // 120: addi x22, x14, 0
+00408093  // 124: addi x1, x1, 4         ; skip:
+00170713  // 128: addi x14, x14, 1
+0060A4B3  // 132: slt  x9, x1, x6
+FE3480E3  // 136: beq  x9, x3, count
+3F402423  // 140: sw   x20, 1000(x0)
+3F502623  // 144: sw   x21, 1004(x0)
+3F602823  // 148: sw   x22, 1008(x0)
+0000006F  // 152: jal  x0, 0

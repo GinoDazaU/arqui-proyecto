@@ -1,0 +1,60 @@
+// EF Benchmark - Bubble sort of 16 pseudo-random words, x = (5x + 3) mod 64, x0 = 7,
+// then a checksum unrolled by 2 and a count of inversions (must be 0).
+// Expected: MEM[0..60]=1,2,4,5,8,9,13,14,15,23,26,28,38,43,48,51 ; MEM[256]=328 (sum)
+//           [260]=0 (inversions) [264]=62 (swaps)
+00100193  //   0: addi x3, x0, 1         ; flag compared by the backward beqs
+04000313  //   4: addi x6, x0, 64        ; end of the array
+00700293  //   8: addi x5, x0, 7         ; seed
+00000093  //  12: addi x1, x0, 0         ; address
+005283B3  //  16: add  x7, x5, x5        ; init: 2x
+007383B3  //  20: add  x7, x7, x7        ; 4x
+005382B3  //  24: add  x5, x7, x5        ; 5x
+00328293  //  28: addi x5, x5, 3
+03F2F293  //  32: andi x5, x5, 63        ; mod 64
+0050A023  //  36: sw   x5, 0(x1)
+00408093  //  40: addi x1, x1, 4
+0060A4B3  //  44: slt  x9, x1, x6
+FE3480E3  //  48: beq  x9, x3, init
+03C00593  //  52: addi x11, x0, 60       ; end of the unsorted part (bytes)
+00000913  //  56: addi x18, x0, 0        ; swaps
+00000613  //  60: addi x12, x0, 0        ; outer: j (bytes)
+00062683  //  64: lw   x13, 0(x12)       ; inner: a[j]
+00462703  //  68: lw   x14, 4(x12)       ; a[j+1]
+00460613  //  72: addi x12, x12, 4
+00B62833  //  76: slt  x16, x12, x11     ; j < end
+00D727B3  //  80: slt  x15, x14, x13     ; a[j+1] < a[j]
+00078863  //  84: beq  x15, x0, noswap   ; data dependent
+FEE62E23  //  88: sw   x14, -4(x12)
+00D62023  //  92: sw   x13, 0(x12)
+00190913  //  96: addi x18, x18, 1
+FC380EE3  // 100: beq  x16, x3, inner    ; noswap:
+FFC58593  // 104: addi x11, x11, -4
+00B028B3  // 108: slt  x17, x0, x11      ; end > 0
+FC3886E3  // 112: beq  x17, x3, outer
+00000093  // 116: addi x1, x0, 0         ; checksum with two accumulators
+00000A13  // 120: addi x20, x0, 0
+00000A93  // 124: addi x21, x0, 0
+00000B13  // 128: addi x22, x0, 0        ; inversions
+00002683  // 132: lw   x13, 0(x0)
+0040A703  // 136: lw   x14, 4(x1)        ; check:
+0080A783  // 140: lw   x15, 8(x1)
+00DA0A33  // 144: add  x20, x20, x13
+00EA8AB3  // 148: add  x21, x21, x14
+00D72833  // 152: slt  x16, x14, x13
+00E7A8B3  // 156: slt  x17, x15, x14
+010B0B33  // 160: add  x22, x22, x16
+011B0B33  // 164: add  x22, x22, x17
+00078693  // 168: addi x13, x15, 0
+00808093  // 172: addi x1, x1, 8
+0380A493  // 176: slti x9, x1, 56
+FC348AE3  // 180: beq  x9, x3, check
+03C02703  // 184: lw   x14, 60(x0)       ; last pair
+00DA0A33  // 188: add  x20, x20, x13
+00EA8AB3  // 192: add  x21, x21, x14
+00D72833  // 196: slt  x16, x14, x13
+010B0B33  // 200: add  x22, x22, x16
+015A0BB3  // 204: add  x23, x20, x21
+11702023  // 208: sw   x23, 256(x0)
+11602223  // 212: sw   x22, 260(x0)
+11202423  // 216: sw   x18, 264(x0)
+0000006F  // 220: jal  x0, 0
