@@ -17,8 +17,8 @@ module datapath(input         clk, reset,
                 output [31:0] InstrD_0,
                 output [31:0] InstrD_1,
                 // to hazard unit (from the branch unit)
-                output        PCSrcE,
-                output        TakenE_0,
+                output        MispredictE,
+                output        FlushLane1E,
                 // from hazard unit
                 input         StallF,
                 input         StallD,
@@ -59,15 +59,34 @@ module datapath(input         clk, reset,
 
   // ================= FETCH =================
   wire [31:0] PCNextF, PCPlus4F, PCPlus8F;
-  wire [31:0] PCTargetE;  // comes from the branch unit (Execute)
+  wire [31:0] PCCorrectE;  // comes from the branch unit (Execute)
+  wire        PredF_0, PredF_1;
+  wire [31:0] TargetF_0, TargetF_1;
+  wire        CtrlE, JumpE, PCSrcE;   // from the branch unit, to update the BTB
+  wire [31:0] PCE, PCTargetE;
 
-  mux3 #(WIDTH) pcmux(
-    .d0(PCPlus4F),
-    .d1(PCTargetE),
-    .d2(PCPlus8F),
-    .s ({~PCSrcE & ~RegroupD, PCSrcE}),
-    .y (PCNextF)
+  btb #(4) predictor(
+    .clk        (clk),
+    .reset      (reset),
+    .pc_0       (PCF),
+    .pc_1       (PCPlus4F),
+    .predtaken_0(PredF_0),
+    .predtaken_1(PredF_1),
+    .target_0   (TargetF_0),
+    .target_1   (TargetF_1),
+    .update     (CtrlE),
+    .upc        (PCE),
+    .utaken     (PCSrcE),
+    .ujump      (JumpE),
+    .utarget    (PCTargetE)
   );
+
+  // priority: misprediction, slot 0 predicted taken, regroup, slot 1 predicted taken
+  assign PCNextF = MispredictE ? PCCorrectE :
+                   PredF_0     ? TargetF_0  :
+                   RegroupD    ? PCPlus4F   :
+                   PredF_1     ? TargetF_1  :
+                                 PCPlus8F;
 
   flopenr #(WIDTH) pcreg(
     .clk  (clk),
@@ -91,23 +110,31 @@ module datapath(input         clk, reset,
 
   // ================= IF/ID =================
   wire [31:0] PCD_0, PCD_1, PCPlus4D_0, PCPlus4D_1;
+  wire        PredD_0, PredD_1;
+  wire [31:0] TargetD_0, TargetD_1;
+
+  // slot 0 predicted taken: the fetched slot 1 is younger and is not on the predicted path
+  wire        AnnulF_1 = PredF_0 & ~RegroupD;
 
   // regroup: only slot 0 issued -> the waiting slot 1 becomes the new slot 0,
   // and the first instruction fetched becomes the new slot 1
   wire [31:0] InstrN_0   = RegroupD ? InstrD_1   : InstrF_0;
-  wire [31:0] InstrN_1   = RegroupD ? InstrF_0   : InstrF_1;
+  wire [31:0] InstrN_1   = RegroupD ? InstrF_0   : AnnulF_1 ? 32'b0 : InstrF_1;
   wire [31:0] PCN_0      = RegroupD ? PCD_1      : PCF;
   wire [31:0] PCN_1      = RegroupD ? PCF        : PCPlus4F;
   wire [31:0] PCPlus4N_0 = RegroupD ? PCPlus4D_1 : PCPlus4F;
   wire [31:0] PCPlus4N_1 = RegroupD ? PCPlus4F   : PCPlus8F;
+  wire [32:0] PredN_0    = RegroupD ? {PredD_1, TargetD_1} : {PredF_0, TargetF_0};
+  wire [32:0] PredN_1    = RegroupD ? {PredF_0, TargetF_0} : AnnulF_1 ? 33'b0 : {PredF_1, TargetF_1};
 
-  flopenrc #(192) regD(
+  flopenrc #(258) regD(
     .clk  (clk),
     .reset(reset),
     .en   (~StallD),
     .clear(FlushD),
-    .d    ({InstrN_0, InstrN_1, PCN_0, PCN_1, PCPlus4N_0, PCPlus4N_1}),
-    .q    ({InstrD_0, InstrD_1, PCD_0, PCD_1, PCPlus4D_0, PCPlus4D_1})
+    .d    ({InstrN_0, InstrN_1, PCN_0, PCN_1, PCPlus4N_0, PCPlus4N_1, PredN_0, PredN_1}),
+    .q    ({InstrD_0, InstrD_1, PCD_0, PCD_1, PCPlus4D_0, PCPlus4D_1,
+            PredD_0, TargetD_0, PredD_1, TargetD_1})
   );
 
   // ================= DECODE =================
@@ -162,25 +189,32 @@ module datapath(input         clk, reset,
   // ================= ID/EX =================
   wire [31:0] RD1E_0, RD2E_0, PCE_0, ImmExtE_0, PCPlus4E_0;
   wire [31:0] InstrE_0;  // debug: only for the waveform
+  wire        PredE_0;
+  wire [31:0] TargetE_0;
 
   wire [31:0] RD1E_1, RD2E_1, PCE_1, ImmExtE_1, PCPlus4E_1;
   wire [31:0] InstrE_1;  // debug: only for the waveform
+  wire        PredE_1;
+  wire [31:0] TargetE_1;
 
-
-  floprc #(207) regE_0(
+  floprc #(240) regE_0(
     .clk  (clk),
     .reset(reset),
     .clear(FlushE_0),
-    .d    ({RD1D_0, RD2D_0, PCD_0, Rs1D_0, Rs2D_0, RdD_0, ImmExtD_0, PCPlus4D_0, InstrD_0}),
-    .q    ({RD1E_0, RD2E_0, PCE_0, Rs1E_0, Rs2E_0, RdE_0, ImmExtE_0, PCPlus4E_0, InstrE_0})
+    .d    ({RD1D_0, RD2D_0, PCD_0, Rs1D_0, Rs2D_0, RdD_0, ImmExtD_0, PCPlus4D_0, InstrD_0,
+            PredD_0, TargetD_0}),
+    .q    ({RD1E_0, RD2E_0, PCE_0, Rs1E_0, Rs2E_0, RdE_0, ImmExtE_0, PCPlus4E_0, InstrE_0,
+            PredE_0, TargetE_0})
   );
 
-  floprc #(207) regE_1(
+  floprc #(240) regE_1(
     .clk  (clk),
     .reset(reset),
     .clear(FlushE_1),
-    .d    ({RD1D_1, RD2D_1, PCD_1, Rs1D_1, Rs2D_1, RdD_1, ImmExtD_1, PCPlus4D_1, InstrD_1}),
-    .q    ({RD1E_1, RD2E_1, PCE_1, Rs1E_1, Rs2E_1, RdE_1, ImmExtE_1, PCPlus4E_1, InstrE_1})
+    .d    ({RD1D_1, RD2D_1, PCD_1, Rs1D_1, Rs2D_1, RdD_1, ImmExtD_1, PCPlus4D_1, InstrD_1,
+            PredD_1, TargetD_1}),
+    .q    ({RD1E_1, RD2E_1, PCE_1, Rs1E_1, Rs2E_1, RdE_1, ImmExtE_1, PCPlus4E_1, InstrE_1,
+            PredE_1, TargetE_1})
   );
 
 
@@ -277,17 +311,29 @@ module datapath(input         clk, reset,
     .JumpE_1     (JumpE_1),
     // lane 0 operands
     .PCE_0       (PCE_0),
+    .PCPlus4E_0  (PCPlus4E_0),
     .ImmExtE_0   (ImmExtE_0),
     .SrcAE_0     (SrcAE_0),
     .WriteDataE_0(WriteDataE_0),
+    .PredE_0     (PredE_0),
+    .TargetE_0   (TargetE_0),
     // lane 1 operands
     .PCE_1       (PCE_1),
+    .PCPlus4E_1  (PCPlus4E_1),
     .ImmExtE_1   (ImmExtE_1),
     .SrcAE_1     (SrcAE_1),
     .WriteDataE_1(WriteDataE_1),
+    .PredE_1     (PredE_1),
+    .TargetE_1   (TargetE_1),
     // results
+    .MispredictE (MispredictE),
+    .FlushLane1E (FlushLane1E),
+    .PCCorrectE  (PCCorrectE),
+    // to BTB
+    .CtrlE       (CtrlE),
+    .JumpE       (JumpE),
     .PCSrcE      (PCSrcE),
-    .TakenE_0    (TakenE_0),
+    .PCE         (PCE),
     .PCTargetE   (PCTargetE)
   );
 
