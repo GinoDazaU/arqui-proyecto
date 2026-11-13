@@ -1,0 +1,23 @@
+// EF Program 5 - Pattern taken, taken, not taken
+// The 2-bit counter stays in the taken states (one misprediction per period); each
+// mispredicted not taken resumes at PC+4 and runs the not-taken path.
+// Expected: x1=9 x10=9 x11=3 ; MEM[0]=9 [4]=3
+00000093  //   0: addi x1, x0, 0         ; i
+00900113  //   4: addi x2, x0, 9         ; n
+00100193  //   8: addi x3, x0, 1
+00000313  //  12: addi x6, x0, 0         ; k = i mod 3
+00000513  //  16: addi x10, x0, 0        ; iterations
+00000593  //  20: addi x11, x0, 0        ; not-taken count
+00232493  //  24: slti x9, x6, 2         ; loop: 1 when k < 2
+00108093  //  28: addi x1, x1, 1
+00348663  //  32: beq  x9, x3, small     ; T, T, N, T, T, N, ...
+00158593  //  36: addi x11, x11, 1       ; not-taken path
+FFF00313  //  40: addi x6, x0, -1
+00130313  //  44: addi x6, x6, 1         ; small:
+00150513  //  48: addi x10, x10, 1
+0020A233  //  52: slt  x4, x1, x2
+00000013  //  56: addi x0, x0, 0
+FC320EE3  //  60: beq  x4, x3, loop
+00A02023  //  64: sw   x10, 0(x0)
+00B02223  //  68: sw   x11, 4(x0)
+0000006F  //  72: jal  x0, 0

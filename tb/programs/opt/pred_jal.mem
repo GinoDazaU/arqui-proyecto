@@ -1,0 +1,19 @@
+// EF Program 4 - jal in the BTB
+// While loop with a forward exit beq and a backward jal, plus a jal x8 that skips a
+// poisoned addi (it would write 99) and writes its return address.
+// Expected: x10=20 x8=32 x9=0 ; MEM[0]=20 [4]=32 [8]=0
+00000093  //   0: addi x1, x0, 0
+00500113  //   4: addi x2, x0, 5
+00000513  //   8: addi x10, x0, 0
+00000493  //  12: addi x9, x0, 0
+00208E63  //  16: beq  x1, x2, done      ; while: forward exit, taken once
+00108093  //  20: addi x1, x1, 1
+00250513  //  24: addi x10, x10, 2
+0080046F  //  28: jal  x8, skip          ; x8 = 32
+06300493  //  32: addi x9, x0, 99        ; skipped
+00250513  //  36: addi x10, x10, 2       ; skip:
+FE9FF06F  //  40: jal  x0, while         ; backward jump
+00A02023  //  44: sw   x10, 0(x0)        ; done:
+00802223  //  48: sw   x8, 4(x0)
+00902423  //  52: sw   x9, 8(x0)
+0000006F  //  56: jal  x0, 0
