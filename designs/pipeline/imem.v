@@ -1,7 +1,7 @@
 module imem(input  [31:0] a,
             output [31:0] rd);
 
-  reg [31:0] RAM[63:0];
+  reg [31:0] RAM[255:0];
 
   reg [1023:0] prog;  // program file, chosen with +prog=<file>
 
@@ -9,7 +9,7 @@ module imem(input  [31:0] a,
 
   initial begin
     // empty words read as 0 (decoded as a bubble), never x
-    for (i = 0; i < 64; i = i + 1) RAM[i] = 32'b0;
+    for (i = 0; i < 256; i = i + 1) RAM[i] = 32'b0;
     if (!$value$plusargs("prog=%s", prog)) prog = "./isa.mem";
     $readmemh(prog, RAM);
   end
