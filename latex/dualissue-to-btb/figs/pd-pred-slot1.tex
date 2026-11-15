@@ -1,0 +1,31 @@
+% BTB design, loop of tb/programs/opt/pred_slot1.s in steady state: the beq in slot 1 is
+% predicted taken, slot 0 is older and stays. Cycle 1 = trace cycle 8 (PCF = 16).
+\documentclass[tikz,border=3mm]{standalone}
+\usepackage{xfp}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{tgheros}
+\renewcommand{\familydefault}{\sfdefault}
+\input{common}
+\input{pd-common}
+\definecolor{opt}{RGB}{139,90,43}
+\begin{document}
+\begin{tikzpicture}
+\pdHeader{9}{10}
+\pdLabel{0}{16}{slt  x4, x1, x2}{0}    \pdInstr{0}{1}{F,D,E,M,W}
+\pdLabel{1}{20}{addi x1, x1, 1}{1}     \pdInstr{1}{1}{F,D,E,M,W}
+\pdLabel{2}{24}{addi x10, x10, 3}{0}   \pdInstr{2}{2}{F,D,E,M,W}
+\pdLabel{3}{28}{beq  x4, x3, loop}{1}  \pdInstr{3}{2}{F,D,E,M,W}
+\pdLabel{4}{16}{slt  x4, x1, x2}{0}    \pdInstr{4}{3}{F,D,E,M,W}
+\pdLabel{5}{20}{addi x1, x1, 1}{1}     \pdInstr{5}{3}{F,D,E,M,W}
+\pdLabel{6}{24}{addi x10, x10, 3}{0}   \pdInstr{6}{4}{F,D,E,M,W}
+\pdLabel{7}{28}{beq  x4, x3, loop}{1}  \pdInstr{7}{4}{F,D,E,M,W}
+\pdLabel{8}{16}{slt  x4, x1, x2}{0}    \pdInstr{8}{5}{F,D,E,M,W}
+\pdLabel{9}{20}{addi x1, x1, 1}{1}     \pdInstr{9}{5}{F,D,E,M,W}
+\pdPair{0}{par} \pdPair{2}{par} \pdPair{4}{par} \pdPair{6}{par} \pdPair{8}{par}
+\pdFwd{0}{3}{3}{4}
+\pdFwd{1}{3}{4}{5}
+\pdNote{3}{6}{\textcolor{opt}{\textbf{PredF\textsubscript{1}}}: siguiente PC = TargetF\textsubscript{1} = 16}
+\pdNote{7}{8}{dos instrucciones por ciclo, sin burbujas}
+\end{tikzpicture}
+\end{document}

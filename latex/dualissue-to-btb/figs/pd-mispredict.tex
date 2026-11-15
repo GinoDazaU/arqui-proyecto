@@ -1,0 +1,34 @@
+% BTB design, last iteration of pred_slot0.s: the beq is predicted taken but falls through.
+% Cycle 1 = trace cycle 31 (PCF = 16).
+\documentclass[tikz,border=3mm]{standalone}
+\usepackage{xfp}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{tgheros}
+\renewcommand{\familydefault}{\sfdefault}
+\input{common}
+\input{pd-common}
+\definecolor{opt}{RGB}{139,90,43}
+\begin{document}
+\begin{tikzpicture}
+\pdHeader{10}{12}
+\pdLabel{0}{16}{addi x1, x1, 1}{0}     \pdInstr{0}{1}{F,D,E,M,W}
+\pdLabel{1}{20}{addi x10, x10, 3}{1}   \pdInstr{1}{1}{F,D,E,M,W}
+\pdLabel{2}{24}{slt  x4, x1, x2}{0}    \pdInstr{2}{2}{F,D,E,M,W}
+\pdLabel{3}{28}{addi x0, x0, 0}{1}     \pdInstr{3}{2}{F,D,E,M,W}
+\pdLabel{4}{32}{beq  x4, x3, loop}{0}  \pdInstr{4}{3}{F,D,E,M,W}
+\pdLabel{5}{36}{addi x5, x0, 7}{}      \pdInstr{5}{3}{f}
+\pdLabel{6}{16}{addi x1, x1, 1}{}      \pdInstr{6}{4}{F,d}
+\pdLabel{7}{20}{addi x10, x10, 3}{}    \pdInstr{7}{4}{F,d}
+\pdLabel{8}{24}{slt  x4, x1, x2}{}     \pdInstr{8}{5}{f}
+\pdLabel{9}{28}{addi x0, x0, 0}{}      \pdInstr{9}{5}{f}
+\pdLabel{10}{36}{addi x5, x0, 7}{0}    \pdInstr{10}{6}{F,D,E,M,W}
+\pdLabel{11}{40}{sw   x10, 0(x0)}{1}   \pdInstr{11}{6}{F,D,E,M,W}
+\pdPair{0}{par} \pdPair{2}{par} \pdPair{4}{par} \pdPair{6}{par} \pdPair{8}{par} \pdPair{10}{par}
+\pdFwd{2}{4}{4}{5}
+\pdNote{4}{7}{predicho tomado, no se toma: \textcolor{opt}{\textbf{MispredictE}}, PCCorrectE = 36}
+\pdNote{7}{5}{\textbf{FlushE\textsubscript{0}, FlushE\textsubscript{1}}: par en Decode}
+\pdNote{9}{5}{\textbf{FlushD}: par en Fetch}
+\pdNote{10}{10}{retoma en PC + 4 del beq}
+\end{tikzpicture}
+\end{document}

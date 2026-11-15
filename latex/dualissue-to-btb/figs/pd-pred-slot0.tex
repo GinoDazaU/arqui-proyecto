@@ -1,0 +1,33 @@
+% BTB design, same loop (pred_slot0.s) after the first iteration: the beq in slot 0 is
+% predicted taken and slot 1 is annulled in Fetch. Cycle 1 = trace cycle 7 (PCF = 16).
+\documentclass[tikz,border=3mm]{standalone}
+\usepackage{xfp}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{tgheros}
+\renewcommand{\familydefault}{\sfdefault}
+\input{common}
+\input{pd-common}
+\definecolor{opt}{RGB}{139,90,43}
+\begin{document}
+\begin{tikzpicture}
+\pdHeader{11}{12}
+\pdLabel{0}{16}{addi x1, x1, 1}{0}     \pdInstr{0}{1}{F,D,E,M,W}
+\pdLabel{1}{20}{addi x10, x10, 3}{1}   \pdInstr{1}{1}{F,D,E,M,W}
+\pdLabel{2}{24}{slt  x4, x1, x2}{0}    \pdInstr{2}{2}{F,D,E,M,W}
+\pdLabel{3}{28}{addi x0, x0, 0}{1}     \pdInstr{3}{2}{F,D,E,M,W}
+\pdLabel{4}{32}{beq  x4, x3, loop}{0}  \pdInstr{4}{3}{F,D,E,M,W}
+\pdLabel{5}{36}{addi x5, x0, 7}{}      \pdInstr{5}{3}{f}
+\pdLabel{6}{16}{addi x1, x1, 1}{0}     \pdInstr{6}{4}{F,D,E,M,W}
+\pdLabel{7}{20}{addi x10, x10, 3}{1}   \pdInstr{7}{4}{F,D,E,M,W}
+\pdLabel{8}{24}{slt  x4, x1, x2}{0}    \pdInstr{8}{5}{F,D,E,M,W}
+\pdLabel{9}{28}{addi x0, x0, 0}{1}     \pdInstr{9}{5}{F,D,E,M,W}
+\pdLabel{10}{32}{beq  x4, x3, loop}{0} \pdInstr{10}{6}{F,D,E,M,W}
+\pdLabel{11}{36}{addi x5, x0, 7}{}     \pdInstr{11}{6}{f}
+\pdPair{0}{par} \pdPair{2}{par} \pdPair{4}{par} \pdPair{6}{par} \pdPair{8}{par} \pdPair{10}{par}
+\pdFwd{2}{4}{4}{5}
+\pdFwd{8}{7}{10}{8}
+\pdNote{4}{7}{\textcolor{opt}{\textbf{PredF\textsubscript{0}}}: en el ciclo 3 el PC ya salta a 16; la Branch Unit confirma en el 5}
+\pdNote{5}{3}{\textcolor{opt}{\textbf{AnnulF\textsubscript{1}}}: el slot 1 queda en el camino no predicho}
+\end{tikzpicture}
+\end{document}

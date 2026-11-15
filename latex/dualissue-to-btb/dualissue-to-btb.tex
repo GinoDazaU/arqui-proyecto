@@ -1,0 +1,959 @@
+% Del dual-issue al dual-issue con predicción de saltos (documento independiente).
+% Compilar con ./build.sh (genera primero las figuras de ./figs).
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-noquoting,es-tabla,es-nolists]{babel}
+\usepackage{lmodern}            % typewriter (instrucciones)
+\usepackage{mathpazo}           % texto y matemáticas: Palatino
+\usepackage[scale=0.9]{tgheros} % sans serif de títulos, pies de figura y figuras
+\linespread{1.06}
+\usepackage{microtype}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage{graphicx}
+\usepackage{pdflscape}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage[most]{tcolorbox}
+\usepackage{titlesec}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{figs/}}
+\definecolor{hhblue}{RGB}{11,111,184}
+\definecolor{hzd}{RGB}{217,95,2}
+\definecolor{new}{RGB}{21,128,61}
+\definecolor{opt}{RGB}{139,90,43}
+
+\captionsetup{labelfont={bf,sf,color=hhblue},textfont={bf,sf,small},labelsep=quad,
+  figurename=Figura,tablename=Tabla}
+
+% headings as in the book: sans bold, number in black, title in blue
+\titleformat{\section}{\sffamily\bfseries\Large}{\thesection}{0.7em}{\color{hhblue}}
+\titleformat{\subsection}{\sffamily\bfseries\large}{\thesubsection}{0.7em}{\color{hhblue}}
+\titleformat{\paragraph}[runin]{\sffamily\bfseries\normalsize}{}{0pt}{\color{hhblue}}
+\titlespacing*{\section}{0pt}{3.2ex plus 1ex minus .2ex}{1.6ex plus .2ex}
+\titlespacing*{\subsection}{0pt}{2.6ex plus 1ex minus .2ex}{1.2ex plus .2ex}
+\titlespacing*{\paragraph}{0pt}{1.6ex plus .5ex minus .2ex}{0.8em}
+
+% signal names in italics (as in the book); lane number as subscript
+\newcommand{\sig}[1]{\textit{#1}}
+\newcommand{\sigk}[2]{\textit{#1}\textsubscript{#2}}
+\newcommand{\ins}[1]{\texttt{#1}}
+
+% HDL examples, numbered per chapter
+\lstdefinestyle{vlog}{language=Verilog, basicstyle=\ttfamily\footnotesize, columns=fullflexible,
+  keywordstyle=\color{hhblue}\bfseries, commentstyle=\color{black!55}\itshape,
+  showstringspaces=false, keepspaces=true, upquote=true,
+  breaklines=true, breakindent=0pt, breakautoindent=true}
+\newcounter{hdl}
+\newtcblisting{hdl}[1]{listing only, breakable, colback=black!3, colframe=black!35,
+  boxrule=0.4pt, arc=1.5pt, left=4pt, right=4pt, top=2pt, bottom=2pt,
+  title={\sffamily\footnotesize\refstepcounter{hdl}\textbf{\textcolor{hhblue}{Ejemplo HDL \thehdl}}\quad #1},
+  coltitle=black, colbacktitle=black!10, listing options={style=vlog}}
+
+\setlist{itemsep=1pt, topsep=3pt}
+\setlist[itemize]{label=\textbullet}
+
+\begin{document}
+
+\begin{center}
+  {\sffamily\bfseries\huge\color{hhblue} Del dual-issue a la predicción de saltos\par}
+  \vspace{0.6ex}
+  {\sffamily\large Branch Target Buffer con contador de 2 bits en un RISC-V de dos vías\par}
+  \vspace{1.2ex}
+  \rule{\linewidth}{0.4pt}
+\end{center}
+\vspace{1ex}
+
+Nuestro procesador dual-issue predice siempre que los saltos no se toman: mientras un salto
+avanza hasta Execute, donde se resuelve, Fetch sigue buscando las instrucciones que vienen a
+continuación en memoria. Cuando el salto sí se toma, los dos pares que se buscaron detrás
+de él se descartan: el salto cuesta dos ciclos, en los que se dejan de emitir hasta cuatro
+instrucciones. El salto que cierra un bucle se toma en todas las iteraciones menos la última,
+así que ese costo se paga en casi todas las vueltas.
+
+En esta guía reemplazamos esa predicción fija por una \emph{predicción de saltos}
+(\emph{branch prediction}) dinámica: en Fetch, antes de saber si el salto se toma, el
+procesador predice su resultado según lo que hizo ese mismo salto las veces anteriores, y
+sigue buscando instrucciones por el camino predicho. El predictor es un \emph{Branch Target
+Buffer} (BTB): una tabla que guarda, para cada salto tomado recientemente, su dirección de
+destino y un contador de 2 bits.
+
+La sección~\ref{sec:base} repasa el procesador de partida y muestra cuánto cuesta un salto
+tomado. La sección~\ref{sec:overview} presenta la idea de la predicción. A partir de la
+sección~\ref{sec:counter}, cada sección agrega una parte al hardware: el contador, la tabla,
+la etapa Fetch, el transporte de la predicción, su verificación y los cambios en la Hazard
+Unit, hasta llegar al procesador completo de la Fig.~\ref{fig:proc-full}. Algunos bloques se
+detallan con fragmentos de Verilog (los \emph{Ejemplos HDL}). Los diagramas de ejecución
+provienen de simular ese mismo hardware.
+
+% =====================================================================
+\section{El punto de partida: el procesador dual-issue}
+\label{sec:base}
+
+Partimos de un RISC-V
+superescalar de dos vías y en orden, construido a partir del pipeline de cinco etapas
+de~\cite{harris}. En cada ciclo busca y decodifica dos instrucciones
+consecutivas, y puede emitir dos, una o ninguna de ellas a Execute. Usamos los mismos
+términos que en su diseño:
+\begin{itemize}
+  \item \textbf{Par}: las dos instrucciones consecutivas que se buscan y decodifican juntas.
+  \item \textbf{Slot 0 / slot 1}: posición dentro del par. El slot~0 contiene la
+        instrucción \emph{más antigua} y el slot~1 la \emph{más joven}, la que sigue en
+        memoria.
+  \item \textbf{Vía} (\emph{lane}): cada una de las dos copias del camino de ejecución. El
+        slot~0 entra a la vía~0 y el slot~1 a la vía~1, de modo que la vía~1 contiene
+        siempre la instrucción más joven.
+  \item \textbf{Emitir} (\emph{issue}): pasar una instrucción de Decode a Execute. La
+        \emph{Issue Unit} decide cuántas instrucciones del par se emiten; si solo emite el
+        slot~0, el slot~1 se \emph{reagrupa}: pasa a ser el slot~0 del par siguiente
+        (señal \sig{RegroupD}).
+\end{itemize}
+
+La Fig.~\ref{fig:base} muestra su datapath. La vía~0 (arriba) es el pipeline de cinco etapas
+y la vía~1 (abajo) es su imagen especular. Sobre el eje central se ubican
+los elementos que comparten ambas vías: la memoria de instrucciones, con dos puertos de
+lectura; el registro IF/ID, que guarda el par completo; el register file, con cuatro
+lecturas y dos escrituras; la Branch Unit y la memoria de datos, con un solo puerto. En la
+parte inferior están la Issue Unit y la Hazard Unit. Las figuras del datapath usan cinco
+colores: negro para los datos, azul para el control, naranja para la Hazard Unit y sus
+señales, verde para la Issue Unit y morado para la Branch Unit. Un punto indica una unión
+entre cables; dos cables que se cruzan sin punto no están conectados.
+
+\begin{landscape}
+\begin{figure}[p]
+\centering
+\includegraphics[width=\linewidth,height=0.88\textheight,keepaspectratio]{proc-dual}
+\caption{Procesador dual-issue de partida: dos vías, Issue Unit con reagrupamiento, Branch
+Unit compartida, stalls por \ins{lw} y flushes por salto en cualquier slot}
+\label{fig:base}
+\end{figure}
+\end{landscape}
+
+Los saltos (\ins{beq} y \ins{jal}) los resuelve un único recurso compartido por ambas vías,
+la \emph{Branch Unit}, en la etapa Execute. La Branch Unit compara los operandos del
+\ins{beq}, calcula la dirección de destino $\sig{PCTargetE} = \sig{PCE} + \sig{ImmExtE}$ y
+activa \sig{PCSrcE} si el salto se toma. Mientras el salto avanza hasta Execute, Fetch sigue
+buscando en secuencia; dicho de otro modo, el procesador predice que \emph{ningún} salto se
+toma. Si el salto se toma, la Hazard Unit descarta las instrucciones del camino incorrecto:
+\begin{itemize}
+  \item el par que está en Decode, con \sigk{FlushE}{0} y \sigk{FlushE}{1};
+  \item el par que está en Fetch, con \sig{FlushD};
+  \item si el salto está en el slot~0, también su compañero del slot~1, que es más joven,
+        con \sigk{FlushM}{1}.
+\end{itemize}
+
+\paragraph{Diagramas de ejecución.} La ejecución se representa con diagramas como el de la
+Fig.~\ref{fig:pd-nopred}. Cada fila corresponde a una instrucción y cada columna a un ciclo.
+Cada celda indica el componente que la instrucción usa en ese ciclo: memoria de
+instrucciones (IM), register file (RF), ALU, memoria de datos (DM) y, de nuevo, register file
+en la escritura. Las celdas grises tachadas son instrucciones que se descartan; las flechas
+azules representan forwarding, y la columna \textsf{v0}/\textsf{v1} indica la vía en la que
+se ejecuta cada instrucción.
+
+\subsection{El costo de un salto tomado}
+
+La Fig.~\ref{fig:pd-nopred} muestra el bucle de la Tabla~\ref{tab:loop}, de tres pares
+por iteración, con el \ins{beq} en el slot~0. En el ciclo~5, el \ins{beq} se resuelve como
+tomado: se anulan su compañero más joven (\sigk{FlushM}{1}), el par que está en Decode y
+el par que está en Fetch. La iteración siguiente empieza a buscarse recién en el ciclo~6.
+Cada iteración ocupa cinco ciclos, aunque solo tres de ellos emiten instrucciones útiles.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Bucle de ejemplo: \ins{x1} cuenta de 1 a 10 y el \ins{beq} vuelve a \ins{loop}
+mientras $\ins{x1} < 10$, así que el bucle da diez iteraciones}
+\label{tab:loop}
+\begin{tabular}{@{}rll@{}}
+\toprule
+Dirección & Instrucción & \\
+\midrule
+0--12 & \multicolumn{2}{l}{inicialización: $\ins{x1} = 0$, $\ins{x2} = 10$, $\ins{x3} = 1$, $\ins{x10} = 0$} \\
+16 & \ins{addi x1, x1, 1} & \ins{loop}; par (16, 20) \\
+20 & \ins{addi x10, x10, 3} & \\
+24 & \ins{slt  x4, x1, x2} & par (24, 28): $\ins{x4} = (\ins{x1} < \ins{x2})$ \\
+28 & \ins{addi x0, x0, 0} & \\
+32 & \ins{beq  x4, x3, loop} & par (32, 36): salto en el slot 0 \\
+36 & \ins{addi x5, x0, 7} & se ejecuta al salir del bucle \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.92\linewidth]{pd-nopred}
+\caption{Dual-issue sin predicción: el \ins{beq} tomado descarta dos pares y su compañero
+del slot~1. La iteración dura cinco ciclos}
+\label{fig:pd-nopred}
+\end{figure}
+
+La pérdida es fácil de cuantificar: si un programa ejecuta $N_T$ saltos tomados, el
+procesador pierde $2N_T$ ciclos. Estos ciclos se pierden porque Fetch no sabe a dónde ir
+hasta que el salto llega a Execute. Para evitarlo, Fetch tendría que decidir de dónde buscar
+las instrucciones siguientes \emph{antes} de conocer el resultado del salto, es decir,
+tendría que \emph{predecirlo}. Esta técnica es la predicción de saltos, que se presenta
+en la sección siguiente.
+
+% =====================================================================
+\section{Visión general}
+\label{sec:overview}
+
+Un \emph{predictor de saltos} adivina, en Fetch, si un salto se va a tomar y, si se toma, a
+qué dirección va. Si acierta, el pipeline sigue lleno y el salto no cuesta nada. Si se
+equivoca, el error se detecta en Execute, como ahora, y se pagan los mismos dos ciclos que
+hoy cuesta cada salto tomado. Visto así, nuestro procesador ya tiene un predictor: el más
+simple de todos, que siempre dice ``no tomado''.
+
+Ese predictor es \emph{estático}: su respuesta no depende de lo que haga el programa. Un
+predictor \emph{dinámico}, en cambio, recuerda lo que hizo cada salto las veces anteriores
+y predice a partir de esa historia. En~\cite{harris}, el predictor dinámico es una máquina
+de estados de 2 bits por salto, que repasamos en la sección~\ref{sec:counter}. Esa máquina
+decide si el salto se toma, pero por sí sola no alcanza para predecir en Fetch. La
+sección~\ref{sec:btb} muestra qué le falta y cómo se resuelve: guardando los contadores,
+junto con el destino de cada salto, en una tabla que Fetch consulta con el PC. Esa tabla es
+el \emph{Branch Target Buffer} (BTB).
+
+\paragraph{Qué hace falta.} El predictor necesita cuatro piezas de hardware, que
+desarrollamos en las secciones siguientes:
+\begin{enumerate}
+  \item un \textbf{contador de 2 bits} por salto, que decide la dirección
+        (sección~\ref{sec:counter});
+  \item la \textbf{tabla BTB}, que guarda el contador y el destino de cada salto y que
+        Fetch lee con el PC, una vez por cada instrucción del par (sección~\ref{sec:btb});
+  \item una etapa \textbf{Fetch} que use esa predicción para elegir el siguiente PC y que
+        anule las instrucciones que quedan fuera del camino predicho
+        (sección~\ref{sec:fetch});
+  \item una \textbf{Branch Unit} que, en Execute, compare la predicción con el resultado
+        real, corrija el PC si hubo error y actualice la tabla
+        (secciones~\ref{sec:carry} y~\ref{sec:verify}).
+\end{enumerate}
+El BTB queda dentro de la etapa Fetch, y el resto de los cambios afecta a la Branch Unit, a
+los registros de pipeline y a dos señales de la Hazard Unit. La Issue Unit, el forwarding,
+el register file y la memoria de datos no cambian. En las figuras, los elementos agregados
+para la predicción aparecen en café; el resto conserva los colores de la
+Fig.~\ref{fig:base}.
+
+% =====================================================================
+\section{El contador de 2 bits}
+\label{sec:counter}
+
+El predictor dinámico más simple usa 1 bit por salto: recuerda si el salto se tomó la
+última vez y predice que hará lo mismo. Consideremos el \ins{beq} que cierra un bucle de
+cuatro iteraciones. Se toma tres veces, para volver al inicio, y no se toma la cuarta, cuando
+el bucle termina. Si el bucle se ejecuta dos veces, el salto produce la secuencia
+\textsf{T T T N T T T N} (T = tomado, N = no tomado), y el predictor de 1 bit se equivoca en
+la cuarta ejecución, porque el bit dice ``tomado'', y también en la quinta: al salir del bucle
+el bit quedó en ``no tomado'' y la primera iteración de la ejecución siguiente vuelve a
+predecirse mal. En régimen, son \emph{dos} errores por cada ejecución del bucle
+(Tabla~\ref{tab:1v2}).
+
+El contador de 2 bits resuelve este problema con cuatro estados
+(Fig.~\ref{fig:fsm}). Los dos estados de la izquierda (\texttt{11}, \texttt{10})
+predicen tomado y los dos de la derecha (\texttt{01}, \texttt{00}) predicen no tomado; la
+predicción es simplemente el bit más significativo, $\sig{Ctr}[1]$. Cada salto tomado
+mueve el contador hacia \texttt{11} y cada salto no tomado lo mueve hacia \texttt{00}, y en
+los extremos el contador satura. Un solo resultado contrario, como la salida de un bucle,
+lleva el contador de \texttt{11} a \texttt{10}, que todavía predice tomado. Por eso el
+contador de 2 bits se equivoca solo en la última iteración de cada bucle: en la
+Tabla~\ref{tab:1v2}, a partir de la segunda ejecución del bucle, comete un error en vez de
+dos.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Predicciones del \ins{beq} que cierra un bucle de cuatro iteraciones ejecutado dos
+veces. Los errores están marcados con $\times$. La primera vez, ningún predictor conoce el
+salto y ambos dicen ``no tomado''}
+\label{tab:1v2}
+\begin{tabular}{@{}lcccccccc@{}}
+\toprule
+Ejecución del \ins{beq} & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 \\
+Resultado real          & T & T & T & N & T & T & T & N \\
+\midrule
+1 bit: predicción       & N $\times$ & T & T & T $\times$ & N $\times$ & T & T & T $\times$ \\
+2 bits: contador antes  & --- & \texttt{10} & \texttt{11} & \texttt{11} & \texttt{10} & \texttt{11} & \texttt{11} & \texttt{11} \\
+2 bits: predicción      & N $\times$ & T & T & T $\times$ & T & T & T & T $\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{fsm-2bit}
+\caption{Contador de 2 bits (adaptado de~\cite{harris}). En café, el valor inicial del contador}
+\label{fig:fsm}
+\end{figure}
+
+Falta decidir con qué valor empieza el contador. Mientras un salto no se ha tomado nunca,
+el predictor no sabe nada de él y predice ``no tomado''. La primera vez que un \ins{beq} se
+toma, su contador empieza en \texttt{10} (\emph{weakly taken}): el salto se acaba de tomar,
+pero un solo resultado contrario basta para cambiar la predicción. Un \ins{jal} se toma
+siempre, así que su contador empieza directamente en \texttt{11}.
+
+% =====================================================================
+\section{El Branch Target Buffer}
+\label{sec:btb}
+
+\subsection{Por qué hace falta una tabla}
+
+Hasta aquí, el predictor es una máquina de estados con un registro de 2 bits. Para usarla en
+Fetch hay que responder tres preguntas, y en Fetch no se conoce ninguna de las respuestas:
+\begin{itemize}
+  \item \textbf{¿La instrucción es un salto?} En Fetch, la instrucción acaba de salir de la
+        memoria de instrucciones y todavía no se ha decodificado. Eso ocurre recién en
+        Decode, un ciclo después.
+  \item \textbf{¿Qué contador le corresponde?} Un programa tiene muchos saltos, y cada uno
+        necesita su propio contador: el \ins{beq} de un bucle no se comporta igual que el
+        de otro. Lo único que Fetch sabe de la instrucción es su dirección, \sig{PCF}, así
+        que el contador tiene que encontrarse a partir de ella.
+  \item \textbf{Si se toma, ¿a dónde va?} El destino, $\sig{PC} + \sig{imm}$, lo calcula
+        la Branch Unit en Execute. Si Fetch predice ``tomado'', necesita ese destino en
+        ese mismo ciclo para buscar la instrucción siguiente.
+\end{itemize}
+Las tres se resuelven con una misma memoria pequeña, que Fetch lee con el PC. Cada entrada
+de la memoria recuerda un salto que ya se ejecutó: su contador de 2 bits y la dirección a
+la que fue la última vez que se tomó. Si el PC buscado tiene una entrada, la instrucción es
+un salto conocido, el contador dice si predecir tomado y la entrada entrega el destino. Si no
+tiene, se predice ``no tomado'', igual que ahora. Esta memoria es el \emph{Branch Target
+Buffer}. En~\cite{harris} aparece en una sola frase, como una tabla de los últimos saltos
+ejecutados que guarda su destino y si se tomaron; en esta sección la construimos.
+
+Observe que la tabla no guarda instrucciones, solo direcciones. Cuando predice ``tomado'',
+el siguiente PC pasa a ser el destino guardado y, en el ciclo siguiente, Fetch busca en la
+memoria de instrucciones a partir de esa dirección, como con cualquier otro PC.
+
+\subsection{Elegir la entrada: el índice}
+
+Nuestra tabla tiene 16 entradas, numeradas de 0 a~15. Para que la lectura sea rápida, no se
+recorren las 16: cada dirección tiene \emph{un único} lugar posible en la tabla, y ese
+lugar se obtiene directamente de los bits del PC. Esta organización se llama de
+\emph{correspondencia directa}.
+
+Para numerar 16 entradas hacen falta 4~bits. Los dos bits más bajos del PC no sirven,
+porque las instrucciones ocupan 4~bytes y sus direcciones son siempre múltiplos de~4:
+$\sig{PC}[1{:}0] = \texttt{00}$. Se usan los cuatro bits siguientes, $\sig{PC}[5{:}2]$, que
+llamamos el \emph{índice}. La Tabla~\ref{tab:idx} lo calcula para las instrucciones del
+bucle de la Tabla~\ref{tab:loop}. Por ejemplo, $32 = \texttt{10\,0000}$ en binario; sus
+bits 5 a~2 son \texttt{1000}, es decir, la entrada~8. Como el índice son los bits que siguen
+a los dos ceros, instrucciones consecutivas caen en entradas consecutivas.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Índice de las instrucciones del bucle de la Tabla~\ref{tab:loop} (6 bits bajos del
+PC)}
+\label{tab:idx}
+\begin{tabular}{@{}rlccc@{}}
+\toprule
+PC & Instrucción & $\sig{PC}[5{:}0]$ & $\sig{PC}[5{:}2]$ & Entrada \\
+\midrule
+16 & \ins{addi x1, x1, 1}   & \texttt{01\,00\,00} & \texttt{0100} & 4 \\
+20 & \ins{addi x10, x10, 3} & \texttt{01\,01\,00} & \texttt{0101} & 5 \\
+24 & \ins{slt  x4, x1, x2}  & \texttt{01\,10\,00} & \texttt{0110} & 6 \\
+28 & \ins{addi x0, x0, 0}   & \texttt{01\,11\,00} & \texttt{0111} & 7 \\
+32 & \ins{beq  x4, x3, loop}& \texttt{10\,00\,00} & \texttt{1000} & 8 \\
+36 & \ins{addi x5, x0, 7}   & \texttt{10\,01\,00} & \texttt{1001} & 9 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Solo el \ins{beq} llega a escribirse en la tabla, en la entrada~8. Las demás instrucciones
+también leen su entrada en Fetch, pero la encuentran vacía y se predicen ``no tomado''.
+
+\subsection{Reconocer la instrucción: Tag y bit de validez}
+
+Con 16 entradas y muchas más direcciones, varias direcciones comparten el mismo índice. La
+dirección~96, por ejemplo, es $\texttt{1\,1000\,00}$: sus bits 5 a~2 también son
+\texttt{1000}. Si el \ins{beq} de la dirección~32 está guardado en la entrada~8 y Fetch busca
+la dirección~96, el índice por sí solo no permite distinguirlas, y la instrucción de la
+dirección~96 recibiría la predicción del \ins{beq}.
+
+Para distinguirlas, cada entrada guarda también el resto del PC, los 26 bits
+$\sig{PC}[31{:}6]$, en un campo llamado \emph{Tag}. Para la dirección~32 el Tag vale~0, y
+para la~96 vale~1. Al leer la tabla, se compara el Tag guardado con los bits
+$\sig{PC}[31{:}6]$ de la dirección buscada. Como el Tag y el índice juntos forman el PC
+completo, si coinciden, la entrada corresponde \emph{exactamente} a esa instrucción.
+
+Falta un último detalle. Después del reset, todas las entradas tienen el Tag en~0, y la
+dirección~32 coincidiría con la entrada~8 aunque nunca se haya escrito nada. Por eso cada
+entrada tiene un bit de validez, V, que el reset pone en~0 y que se activa cuando se escribe
+la entrada.
+
+Así, cada entrada tiene cuatro campos: V (1~bit), Tag (26~bits), el contador Ctr (2~bits) y
+el destino Target (32~bits). Leer la tabla con una dirección tiene dos resultados posibles:
+\begin{itemize}
+  \item \textbf{acierto} (\emph{hit}): la entrada es válida y el Tag coincide. La
+        instrucción es un salto conocido; se predice tomado si el contador está en
+        \texttt{11} o \texttt{10}, es decir, si $\sig{Ctr}[1] = 1$, y el destino es Target;
+  \item \textbf{fallo} (\emph{miss}): en cualquier otro caso. Se predice no tomado.
+\end{itemize}
+En una sola ecuación,
+\[
+  \sig{predtaken} = \sig{V}\cdot(\sig{Tag} = \sig{PC}[31{:}6])\cdot\sig{Ctr}[1].
+\]
+El BTB no necesita saber si la instrucción es un salto. Como solo se escriben saltos (lo
+vemos a continuación), una dirección con entrada válida es siempre la de un salto.
+
+\subsection{Escribir la tabla}
+
+La tabla se escribe en un solo lugar: la Branch Unit, en Execute, cada vez que hay un salto
+en esa etapa, porque recién ahí se sabe si se tomó y cuál es su destino. Con el índice del
+PC del salto lee la entrada que le corresponde, comprueba si hay hit, y en el flanco de
+subida del reloj escribe el resultado:
+\begin{itemize}
+  \item \textbf{salto tomado}: se escriben V~=~1, el Tag y el destino calculado. El contador
+        aumenta en~1 si ya había hit; si la entrada es nueva, empieza en \texttt{10}
+        (\texttt{11} para un \ins{jal}), como se vio en la sección~\ref{sec:counter};
+  \item \textbf{salto no tomado con hit}: el contador disminuye en~1;
+  \item \textbf{salto no tomado sin hit}: no se escribe nada. Ese salto se predijo ``no
+        tomado'' y acertó, así que no hay nada que recordar.
+\end{itemize}
+Si la entrada estaba ocupada por otro salto con el mismo índice, el salto tomado la
+reemplaza. Este conflicto nunca produce un resultado incorrecto: a lo sumo, el salto que se
+perdió se predice ``no tomado'' la próxima vez, y si eso es un error, la verificación de la
+sección~\ref{sec:verify} lo corrige.
+
+La Tabla~\ref{tab:trace} sigue la entrada~8 durante las diez iteraciones del bucle de la
+Tabla~\ref{tab:loop}. En la primera iteración la entrada está vacía: hay fallo, se predice
+``no tomado'' y el \ins{beq} paga los dos ciclos de siempre. Al resolverse, se crea la
+entrada. Desde la segunda iteración hay hit y la predicción acierta, hasta la última, en la
+que el \ins{beq} no se toma y el contador baja a~\texttt{10}. Si el bucle se vuelve a
+ejecutar, la entrada sigue ahí y su primer salto se predice bien: el único error es el de la
+salida.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Entrada~8 del BTB durante el bucle de la Tabla~\ref{tab:loop}. Los errores de
+predicción están marcados con $\times$}
+\label{tab:trace}
+\begin{tabular}{@{}cccc c>{\raggedright\arraybackslash}p{3.9cm}@{}}
+\toprule
+Iteración & Entrada~8 antes & Lectura & Predicción & Resultado & Entrada~8 después \\
+\midrule
+1        & V = 0              & fallo & no tomado $\times$ & tomado    & V = 1, Tag = 0, Ctr = \texttt{10}, Target = 16 \\
+2        & Ctr = \texttt{10}  & hit   & tomado             & tomado    & Ctr = \texttt{11} \\
+3 a 9    & Ctr = \texttt{11}  & hit   & tomado             & tomado    & Ctr = \texttt{11} (satura) \\
+10       & Ctr = \texttt{11}  & hit   & tomado $\times$    & no tomado & Ctr = \texttt{10} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Es importante que la escritura parta del contador que hay \emph{en ese momento} en la tabla,
+y no del valor que se leyó en Fetch cuando se predijo el salto. La predicción y la escritura
+están separadas por dos ciclos, y en un bucle corto la instancia siguiente del mismo salto se
+busca antes de que la anterior se escriba. Supongamos un bucle de dos pares: el \ins{beq} se
+busca en el ciclo~$t$, llega a Execute en el ciclo~$t+2$ y, en ese mismo ciclo, Fetch ya
+vuelve a buscarlo para la iteración siguiente. Si cada escritura partiera del valor leído en
+Fetch, las dos instancias habrían leído el mismo contador y escribirían el mismo resultado:
+se perdería una cuenta. Leyendo la tabla en Execute, cada escritura parte del valor que dejó
+la anterior.
+
+\subsection{Dos puertos de lectura}
+
+El procesador busca dos instrucciones por ciclo, y cualquiera de ellas puede ser un salto,
+así que el BTB se lee dos veces por ciclo: tiene dos puertos de lectura, del mismo modo que
+la memoria de instrucciones. El puerto~0 recibe \sig{PCF}, la dirección del slot~0, y
+entrega \sigk{PredF}{0} (se predice tomado) y \sigk{TargetF}{0} (destino predicho). El
+puerto~1 recibe \sig{PCPlus4F}, la dirección del slot~1, y entrega \sigk{PredF}{1} y
+\sigk{TargetF}{1}. Como las dos direcciones son consecutivas, los dos puertos leen
+entradas vecinas: el par (32,~36) lee las entradas~8 y~9. La lectura es combinacional,
+igual que la de la memoria de instrucciones, de modo que la predicción está lista en el
+mismo ciclo en que se busca el par.
+
+La Fig.~\ref{fig:btb} reúne todo lo anterior. En el centro está la tabla, con el contenido
+de la entrada~8 durante el bucle. Arriba está el puerto~0: el PC se divide en Tag, índice y
+los dos ceros; el índice elige una fila (el multiplexor 16:1), un comparador verifica el
+Tag, y una compuerta AND combina V, el resultado del comparador y $\sig{Ctr}[1]$ para dar
+\sigk{PredF}{0}. Abajo está el puerto~1, idéntico. A la derecha, el bloque de escritura
+recibe de la Branch Unit las señales del salto que está en Execute; los nombres del módulo
+(\sig{pc\_0}, \sig{upc}, \dots) aparecen junto a la señal del datapath a la que se conectan:
+\begin{itemize}
+  \item \sig{update} $\leftarrow$ $\sig{CtrlE} = \sig{BranchE} + \sig{JumpE}$: en Execute hay
+        un \ins{beq} o un \ins{jal};
+  \item \sig{upc} $\leftarrow$ \sig{PCE}, la dirección del salto, que da el índice y el Tag;
+  \item \sig{utaken} $\leftarrow$ \sig{PCSrcE}, si el salto se tomó;
+  \item \sig{ujump} $\leftarrow$ \sig{JumpE}, si es un \ins{jal};
+  \item \sig{utarget} $\leftarrow$ \sig{PCTargetE}, el destino calculado.
+\end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{btb-inside}
+\caption{Estructura interna del BTB: dos puertos de lectura (uno por slot) y el bloque de
+escritura. El contenido de ejemplo es la entrada~8 durante el bucle de la
+Tabla~\ref{tab:loop}}
+\label{fig:btb}
+\end{figure}
+
+\begin{hdl}{Lectura y actualización del BTB}
+// prediction (Fetch): one read port per slot, combinational
+wire [3:0] idx_0 = pc_0[5:2];
+wire       hit_0 = valid[idx_0] & (tag[idx_0] == pc_0[31:6]);
+assign predtaken_0 = hit_0 & ctr[idx_0][1];
+assign target_0    = target[idx_0];
+// (slot 1: the same with pc_1)
+
+// update (Execute): reads the current entry, writes it at the clock edge
+wire [3:0] uidx = upc[5:2];
+wire       uhit = valid[uidx] & (tag[uidx] == upc[31:6]);
+always @(posedge clk or posedge reset)
+  if (reset) /* every valid <= 0 */ ;
+  else if (update & utaken) begin            // taken: write the entry
+    valid[uidx]  <= 1'b1;
+    tag[uidx]    <= upc[31:6];
+    target[uidx] <= utarget;
+    ctr[uidx]    <= ujump ? 2'b11 : uhit ? inc : 2'b10;
+  end else if (update & uhit)                // not taken: count down
+    ctr[uidx]    <= dec;                     // inc / dec saturate at 11 / 00
+\end{hdl}
+
+\subsection{Resumen}
+
+La Tabla~\ref{tab:params} reúne las decisiones de diseño del BTB que se explicaron en esta
+sección y en la anterior.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Parámetros del predictor}
+\label{tab:params}
+\begin{tabular}{@{}l>{\raggedright\arraybackslash}p{5.0cm}>{\raggedright\arraybackslash}p{5.6cm}@{}}
+\toprule
+Parámetro & Valor & Motivo \\
+\midrule
+Entradas & 16, correspondencia directa & los saltos de un bucle pequeño caben sin compartir entrada \\
+Contenido de una entrada & V, Tag (26 b), Ctr (2 b), Target (32 b) & 61 bits; 976 bits en total \\
+Puertos & 2 lecturas, 1 escritura & una predicción por slot; un salto por ciclo \\
+Fallo en la tabla & se predice no tomado & igual que el dual-issue de partida \\
+Entrada nueva & solo si el salto se toma & un salto nunca tomado no necesita entrada \\
+Verificación & en Execute, en la Branch Unit & el salto se resuelve donde se resolvía (sección~\ref{sec:verify}) \\
+Penalización por error & 2 ciclos & la misma que un salto tomado sin predicción (sección~\ref{sec:verify}) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+\section{Fetch con predicción}
+\label{sec:fetch}
+
+\subsection{El siguiente PC}
+
+En el dual-issue de partida, el siguiente PC era $\sig{PC}+8$ (se emitió el par),
+$\sig{PC}+4$ (reagrupamiento) o \sig{PCTargetE} (salto tomado). Con predicción aparecen dos
+fuentes nuevas: los destinos predichos \sigk{TargetF}{0} y \sigk{TargetF}{1}, que entrega
+el BTB. Además, \sig{PCTargetE} se reemplaza por \sig{PCCorrectE}. Esta señal, junto con
+\sig{MispredictE}, la genera la Branch Unit (sección~\ref{sec:verify}): \sig{MispredictE}
+indica que la predicción del salto que está en Execute fue incorrecta, y \sig{PCCorrectE}
+es la dirección por la que Fetch debe continuar. Los cinco candidatos se eligen en este
+orden de prioridad:
+\[
+  \sig{PCNextF} =
+  \begin{cases}
+    \sig{PCCorrectE} & \text{si } \sig{MispredictE} \\
+    \sigk{TargetF}{0} & \text{si } \sigk{PredF}{0} \\
+    \sig{PCPlus4F}   & \text{si } \sig{RegroupD} \\
+    \sigk{TargetF}{1} & \text{si } \sigk{PredF}{1} \\
+    \sig{PCPlus8F}   & \text{en otro caso}
+  \end{cases}
+\]
+y se implementan con una cadena de cuatro multiplexores 2:1 (Fig.~\ref{fig:zoom-fetch}). El
+orden no es arbitrario:
+\begin{itemize}
+  \item \textbf{\sig{MispredictE} primero.} Si la Branch Unit detecta un error, todo lo que
+        hay en Fetch y Decode pertenece al camino incorrecto, incluidas sus predicciones.
+  \item \textbf{\sigk{PredF}{0} antes que \sig{RegroupD}.} Recordemos que en un
+        reagrupamiento el nuevo par se forma con el slot~1 que espera en Decode y con
+        \sigk{InstrF}{0}, y que el PC avanza solo en~4, hasta la instrucción que sigue a
+        \sigk{InstrF}{0}. Pero si \sigk{InstrF}{0} es un salto predicho tomado, la
+        instrucción que la sigue en el camino predicho es su destino, no
+        $\sig{PCF}+4$.
+  \item \textbf{\sig{RegroupD} antes que \sigk{PredF}{1}.} Durante un reagrupamiento,
+        \sigk{InstrF}{1} no entra a IF/ID: se descarta y se vuelve a buscar en el ciclo
+        siguiente. Su predicción, por lo tanto, todavía no corresponde.
+\end{itemize}
+
+\subsection{Anulación del slot 1}
+
+Si el slot~0 del par buscado es un salto predicho tomado, el slot~1 es la instrucción que
+lo sigue en memoria, que queda \emph{fuera} del camino predicho. No puede ejecutarse, así
+que se anula antes de entrar a IF/ID:
+\[
+  \sigk{AnnulF}{1} = \sigk{PredF}{0}\cdot\overline{\sig{RegroupD}}.
+\]
+Con \sigk{AnnulF}{1} activa, dos multiplexores ponen en~0 la instrucción del slot~1 y su
+predicción. Una instrucción en~0 actúa como burbuja: no escribe registros ni memoria y no
+es un salto. Durante un reagrupamiento no se anula nada, porque el slot~1 nuevo es
+\sigk{InstrF}{0} y \sigk{InstrF}{1} ya se descarta.
+
+Esta anulación tiene un costo: cuando el salto ocupa el slot~0, el par sale de Fetch con una
+sola instrucción útil. Si el salto ocupa el slot~1, en cambio, el par completo es útil,
+porque el slot~0 es más antiguo que el salto.
+
+\subsection{Reagrupamiento de la predicción}
+
+Si la instrucción del slot~1 queda en espera y se reagrupa, debe llevarse su predicción. Por
+eso se agregan dos multiplexores de reagrupamiento más, con la misma lógica que los de la
+instrucción y su PC:
+\begin{itemize}
+  \item \textbf{nuevo slot~0} $\leftarrow$ \{\sigk{PredD}{1}, \sigk{TargetD}{1}\},
+        realimentado desde la salida de IF/ID;
+  \item \textbf{nuevo slot~1} $\leftarrow$ \{\sigk{PredF}{0}, \sigk{TargetF}{0}\}, la
+        predicción de \sigk{InstrF}{0}.
+\end{itemize}
+
+El reagrupamiento sigue funcionando sin otros cambios. En el dual-issue de partida, mientras
+un par está en Decode, Fetch se encuentra en $\sig{PCF} = \sigk{PCD}{1} + 4$, de modo que
+\sigk{InstrF}{0} es la instrucción que sigue al slot~1, y por eso puede completar el par
+reagrupado. Con predicción, \sig{PCF} apunta a la instrucción que sigue
+al slot~1 \emph{en el camino predicho}: si el slot~1 es un salto predicho tomado, Fetch ya
+está buscando su destino.
+
+Por ejemplo, supongamos que en Decode está el par formado por \ins{slt x4, x1, x2} en el
+slot~0 y \ins{beq x4, x3, loop} en el slot~1, y que el \ins{beq} se predijo tomado. El \ins{beq} necesita el \ins{x4} que calcula
+el \ins{slt} en el mismo ciclo, así que la Issue Unit emite solo el \ins{slt} y el
+\ins{beq} se reagrupa. Mientras tanto, como el \ins{beq} se predijo tomado, Fetch ya está
+buscando la primera instrucción de \ins{loop}. El nuevo par queda formado por el \ins{beq}
+y esa instrucción, que es exactamente la que lo sigue en el camino predicho. El
+reagrupamiento no necesita saber que hubo una predicción: solo toma lo que Fetch le
+entrega.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[height=13.0cm]{proc-btb-zoom-fetch}
+\caption{Fetch con predicción: BTB, cadena de multiplexores del siguiente PC,
+reagrupamiento de \{Pred, Target\} y anulación del slot~1 con \sigk{AnnulF}{1}}
+\label{fig:zoom-fetch}
+\end{figure}
+
+\begin{hdl}{Siguiente PC, anulación y reagrupamiento de la predicción}
+// priority: misprediction, slot 0 predicted taken, regroup, slot 1 predicted taken
+assign PCNextF = MispredictE ? PCCorrectE :
+                 PredF_0     ? TargetF_0  :
+                 RegroupD    ? PCPlus4F   :
+                 PredF_1     ? TargetF_1  :
+                               PCPlus8F;
+
+// slot 0 predicted taken: the fetched slot 1 is not on the predicted path
+wire AnnulF_1 = PredF_0 & ~RegroupD;
+
+wire [31:0] InstrN_1 = RegroupD ? InstrF_0 : AnnulF_1 ? 32'b0 : InstrF_1;
+wire [32:0] PredN_0  = RegroupD ? {PredD_1, TargetD_1} : {PredF_0, TargetF_0};
+wire [32:0] PredN_1  = RegroupD ? {PredF_0, TargetF_0} : AnnulF_1 ? 33'b0 : {PredF_1, TargetF_1};
+\end{hdl}
+
+% =====================================================================
+\section{Transporte de la predicción}
+\label{sec:carry}
+
+La predicción se hace en Fetch, pero se verifica en Execute, dos ciclos después. Hasta
+entonces viaja con la instrucción, en los mismos registros de pipeline: 33 bits por
+instrucción (\sig{Pred} y \sig{Target}). La Tabla~\ref{tab:regs} muestra los registros que
+crecen. EX/MEM y MEM/WB no cambian, porque la predicción ya no se usa después de Execute.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Registros de pipeline que crecen ($k = 0, 1$)}
+\label{tab:regs}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Registro & Campos nuevos & Bits agregados \\
+\midrule
+IF/ID (uno para el par) & \sigk{PredD}{0}, \sigk{TargetD}{0}, \sigk{PredD}{1}, \sigk{TargetD}{1} & 66 \\
+ID/EX$_k$ & \sigk{PredE}{k}, \sigk{TargetE}{k} & 33 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Como viajan en los mismos registros, la predicción obedece a los mismos stalls y flushes
+que la instrucción: si la instrucción se detiene, su predicción también; si se descarta,
+su predicción desaparece con ella. Por eso basta con que la Branch Unit mire la
+predicción de la vía que contiene el salto.
+
+% =====================================================================
+\section{Verificación en la Branch Unit}
+\label{sec:verify}
+
+\subsection{Error de predicción}
+
+La Branch Unit sigue resolviendo el salto como en el dual-issue de partida: selecciona los operandos
+de la vía que contiene el salto ($\sig{BrLaneE} = \sigk{BranchE}{1} + \sigk{JumpE}{1}$),
+compara $\sig{SrcA} = \sig{SrcB}$ y calcula $\sig{PCTargetE} = \sig{PCE} + \sig{ImmExtE}$
+(Fig.~\ref{fig:bu}). Ahora, además, toma con los mismos multiplexores la predicción de esa
+vía, \sig{PredTakenE} y \sig{PredTargetE}, y la compara con el resultado. La predicción es
+incorrecta si se equivocó en la dirección o, cuando el salto se toma, en el destino:
+\[
+  \sig{MispredictE} = \sig{CtrlE}\cdot\big[(\sig{PCSrcE} \neq \sig{PredTakenE}) +
+  \sig{PCSrcE}\cdot(\sig{PCTargetE} \neq \sig{PredTargetE})\big],
+\]
+donde $\sig{CtrlE} = \sig{BranchE} + \sig{JumpE}$ indica que hay un salto en Execute. Con
+el Tag completo, un hit implica el mismo PC y, por lo tanto, el mismo destino, así que la
+comparación del destino nunca falla en este diseño. La conservamos porque hace que la
+verificación sea correcta por sí misma, aunque la tabla se simplificara (con un Tag más
+corto, por ejemplo).
+
+La Tabla~\ref{tab:cases} enumera los casos. Lo importante es que \sig{MispredictE}
+reemplaza a \sig{PCSrcE} como señal de ``el camino es incorrecto''. Un salto tomado que se
+predijo como tomado no genera ningún flush, y un salto predicho como tomado que no se toma
+sí lo genera.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Casos de la verificación en Execute}
+\label{tab:cases}
+\begin{tabular}{@{}llll@{}}
+\toprule
+Predicción & Resultado & \sig{MispredictE} & Siguiente PC \\
+\midrule
+no tomado & no tomado & 0 & sigue la secuencia \\
+no tomado & tomado    & 1 & $\sig{PCCorrectE} = \sig{PCTargetE}$ \\
+tomado    & tomado    & 0 & Fetch ya está en el destino \\
+tomado    & no tomado & 1 & $\sig{PCCorrectE} = \sig{PCPlus4E}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Corrección del PC}
+
+Cuando la predicción falla, Fetch debe volver al camino correcto: al destino si el salto se
+tomó, o a la instrucción siguiente al salto si no se tomó:
+\[
+  \sig{PCCorrectE} = \sig{PCSrcE}\;?\;\sig{PCTargetE} : \sig{PCPlus4E}.
+\]
+Por eso la Branch Unit recibe ahora también el $\sig{PC}+4$ de cada vía. En el dual-issue
+de partida este caso no existía: un salto no tomado nunca desviaba a Fetch. Observe que,
+cuando \sigk{AnnulF}{1} anuló en Fetch el slot~1 que seguía al salto, la dirección de esa
+instrucción es justamente \sig{PCPlus4E}, de modo que la instrucción anulada se vuelve a
+buscar.
+
+\subsection{Anulación de la otra vía}
+
+En el dual-issue de partida, $\sigk{TakenE}{0} = \sig{PCSrcE}\cdot\overline{\sig{BrLaneE}}$ indicaba un salto tomado en la vía~0 y anulaba
+a su compañero más joven de la vía~1. Ahora la condición es un error de predicción en la
+vía~0:
+\[
+  \sig{FlushLane1E} = \sig{MispredictE}\cdot\overline{\sig{BrLaneE}}.
+\]
+En ambos sentidos del error, la vía~1 contiene una instrucción del camino incorrecto:
+\begin{itemize}
+  \item si el salto se predijo no tomado y se tomó, la vía~1 contiene la instrucción
+        siguiente en memoria;
+  \item si se predijo tomado y no se tomó, la vía~1 contiene la primera instrucción del
+        destino predicho. Esto ocurre cuando el salto llegó al slot~0 por un
+        reagrupamiento. Si, en cambio, el salto ya estaba en el slot~0 cuando se buscó,
+        \sigk{AnnulF}{1} dejó la vía~1 vacía y anularla de nuevo no tiene efecto.
+\end{itemize}
+
+\subsection{Actualización de la tabla}
+
+Por último, la Branch Unit entrega al BTB las señales del puerto de actualización
+(sección~\ref{sec:btb}): \sig{CtrlE}, el PC del salto (\sig{PCE}), \sig{PCSrcE},
+\sig{JumpE} y \sig{PCTargetE}. Todas salen de los mismos multiplexores de selección de
+vía, así que la actualización corresponde siempre al único salto que hay en Execute.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{bu-inside}
+\caption{Branch Unit con verificación: selección de la vía, resolución, detección del error
+de predicción, \sig{PCCorrectE}, \sig{FlushLane1E} y señales de actualización del BTB}
+\label{fig:bu}
+\end{figure}
+
+\begin{hdl}{Verificación de la predicción}
+wire BrLaneE = BranchE_1 | JumpE_1;          // lane that owns the branch unit
+// ... lane multiplexers: PCE, PCPlus4E, ImmExtE, SrcAE, SrcBE, PredTakenE, PredTargetE
+assign CtrlE  = BranchE | JumpE;
+assign EqualE = (SrcAE == SrcBE);
+adder pcaddbranch(PCE, ImmExtE, PCTargetE);
+assign PCSrcE = (BranchE & EqualE) | JumpE;
+
+// wrong direction, or taken to a different target
+assign MispredictE = CtrlE & ((PCSrcE != PredTakenE) | (PCSrcE & (PCTargetE != PredTargetE)));
+mux2 #(32) correctmux(PCPlus4E, PCTargetE, PCSrcE, PCCorrectE);
+// mispredicted branch in lane 0: lane 1 is younger and on the wrong path
+assign FlushLane1E = MispredictE & ~BrLaneE;
+\end{hdl}
+
+% =====================================================================
+\section{Cambios en la Hazard Unit}
+\label{sec:hazard}
+
+La Hazard Unit no cambia de estructura: solo cambia la señal que indica que el camino es
+incorrecto. Donde antes usaba \sig{PCSrcE} (salto tomado) ahora usa \sig{MispredictE}
+(predicción incorrecta), y \sigk{TakenE}{0} se reemplaza por \sig{FlushLane1E}
+(Tabla~\ref{tab:hu}). Las prioridades se mantienen: un error de predicción cancela el stall
+por load-use y el reagrupamiento, porque el par que está en Decode se va a descartar.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Salidas de la Hazard Unit que cambian: dual-issue y dual-issue con predicción}
+\label{tab:hu}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Salida & Dual-issue & Con predicción \\
+\midrule
+\sig{lwStallD} & $\sigk{LoadUseD}{0}\cdot\overline{\sig{PCSrcE}}$ & $\sigk{LoadUseD}{0}\cdot\overline{\sig{MispredictE}}$ \\
+\sig{RegroupD} & $\sig{IssueOneD}\cdot\overline{\sig{lwStallD}}\cdot\overline{\sig{PCSrcE}}$ & $\sig{IssueOneD}\cdot\overline{\sig{lwStallD}}\cdot\overline{\sig{MispredictE}}$ \\
+\sig{FlushD} & \sig{PCSrcE} & \sig{MispredictE} \\
+\sigk{FlushE}{0} & $\sig{lwStallD} + \sig{PCSrcE}$ & $\sig{lwStallD} + \sig{MispredictE}$ \\
+\sigk{FlushE}{1} & $\sig{lwStallD} + \sig{PCSrcE} + \sig{IssueOneD}$ & $\sig{lwStallD} + \sig{MispredictE} + \sig{IssueOneD}$ \\
+\sigk{FlushM}{1} & \sigk{TakenE}{0} & \sig{FlushLane1E} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Un salto bien predicho puede coexistir con un stall. Supongamos que el par
+(\ins{lw}, \ins{beq}) se emite junto y el \ins{beq} se predice tomado, de modo que Decode
+ya contiene el par del destino, cuya primera instrucción usa el registro que carga el
+\ins{lw}. Como no hay error de predicción, \sigk{LoadUseD}{0} detiene el par durante un
+ciclo, exactamente como en el dual-issue de partida.
+
+\begin{hdl}{Stalls, reagrupamiento y flushes con predicción}
+assign lwStallD = LoadUseD_0 & ~MispredictE;          // a misprediction has priority
+assign StallD   = lwStallD;
+assign StallF   = lwStallD;
+assign RegroupD = IssueOneD & ~lwStallD & ~MispredictE;
+assign FlushD   = MispredictE;
+assign FlushE_0 = lwStallD | MispredictE;
+assign FlushE_1 = lwStallD | MispredictE | IssueOneD;
+assign FlushM_1 = FlushLane1E;                        // mispredicted in lane 0
+\end{hdl}
+
+% =====================================================================
+\section{Ejecución con predicción}
+\label{sec:exec}
+
+\paragraph{Salto en el slot 0.} La Fig.~\ref{fig:pd-slot0} muestra el bucle de la
+Tabla~\ref{tab:loop} a partir de la segunda iteración. En la primera, el \ins{beq} no está
+en la tabla, se predice no tomado y se comporta igual que en la Fig.~\ref{fig:pd-nopred};
+al resolverse, crea su entrada con el contador en \texttt{10}. Desde entonces:
+\begin{itemize}
+  \item \textbf{Ciclo~3.} El par (32,~36) se busca y el BTB predice el \ins{beq} como
+        tomado (\sigk{PredF}{0}). El siguiente PC es $\sigk{TargetF}{0} = 16$, y el
+        \ins{addi x5} del slot~1 se anula (\sigk{AnnulF}{1}).
+  \item \textbf{Ciclo~4.} Fetch ya busca la iteración siguiente.
+  \item \textbf{Ciclo~5.} La Branch Unit confirma que el salto se toma y que el destino
+        es~16. No hay flush, y el contador pasa a \texttt{11}.
+\end{itemize}
+La iteración baja de cinco a tres ciclos. El único costo que queda es la posición del
+slot~1 anulado.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.92\linewidth]{pd-pred-slot0}
+\caption{El mismo bucle con predicción: el \ins{beq} del slot~0 se predice tomado en Fetch,
+el slot~1 se anula y la iteración dura tres ciclos}
+\label{fig:pd-slot0}
+\end{figure}
+
+\paragraph{Salto en el slot 1.} Reordenemos el bucle en cuatro instrucciones, de modo que
+el \ins{beq} quede en el slot~1 (la inicialización es la misma):
+\begin{center}\small
+\begin{tabular}{@{}rll@{}}
+16 & \ins{loop: slt x4, x1, x2} & \# par (16, 20) \\
+20 & \ins{addi x1, x1, 1} & \\
+24 & \ins{addi x10, x10, 3} & \# par (24, 28) \\
+28 & \ins{beq  x4, x3, loop} & \# salto en el slot 1 \\
+\end{tabular}
+\end{center}
+Ahora el \ins{slt} compara el valor de \ins{x1} anterior al incremento, por lo que ninguna
+instrucción depende de su compañera de par y todos los pares se emiten completos. (Por la
+misma razón el bucle da una iteración más, once en vez de diez; para la explicación eso no
+importa.) La
+Fig.~\ref{fig:pd-slot1} muestra el bucle en régimen. Cuando se busca el par (24,~28), el
+BTB predice el \ins{beq} del slot~1 (\sigk{PredF}{1}) y el siguiente PC es
+$\sigk{TargetF}{1} = 16$. Esta vez no se anula nada: el slot~0 (\ins{addi x10}) es más
+antiguo que el salto y se ejecuta siempre. Cada iteración ocupa dos ciclos y el bucle avanza a
+dos instrucciones por ciclo, el máximo del procesador. Es además el bucle de dos pares de la
+sección~\ref{sec:btb}: en el ciclo~4, la segunda instancia del \ins{beq} se busca mientras
+la primera está en Execute.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.80\linewidth]{pd-pred-slot1}
+\caption{Salto predicho tomado en el slot~1: el par completo es útil y el bucle avanza a
+dos instrucciones por ciclo}
+\label{fig:pd-slot1}
+\end{figure}
+
+\paragraph{Error de predicción.} En la última iteración, el contador está en \texttt{11}
+y el \ins{beq} vuelve a predecirse tomado, pero esta vez no se toma
+(Fig.~\ref{fig:pd-mispredict}). En el ciclo~5 la Branch Unit activa \sig{MispredictE}:
+el par de Decode y el par de Fetch, que eran la iteración predicha, se descartan, y Fetch
+retoma en $\sig{PCCorrectE} = \sig{PCPlus4E} = 36$, es decir, en el \ins{addi x5} que se
+había anulado. El contador baja a \texttt{10}, de modo que si el bucle se vuelve a ejecutar,
+su primer salto se predice bien. Es la misma penalización de dos ciclos que pagaba el
+dual-issue, pero ahora solo una vez por bucle y no en cada iteración.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.92\linewidth]{pd-mispredict}
+\caption{Error de predicción a la salida del bucle: se descartan dos pares y Fetch retoma
+en el $\sig{PC}+4$ del \ins{beq}}
+\label{fig:pd-mispredict}
+\end{figure}
+
+\begin{landscape}
+\begin{figure}[p]
+\centering
+\includegraphics[width=\linewidth,height=0.88\textheight,keepaspectratio]{proc-btb}
+\caption{Procesador dual-issue con predicción de saltos. En café: BTB, cadena del siguiente
+PC, reagrupamiento y anulación de la predicción, \{Pred, Target\} hasta la Branch Unit,
+\sig{PCCorrectE} y actualización del BTB}
+\label{fig:proc-full}
+\end{figure}
+\end{landscape}
+
+% =====================================================================
+\section{Resumen}
+\label{sec:summary}
+
+La Tabla~\ref{tab:summary} resume qué se agregó al procesador dual-issue y qué se
+modificó.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Del dual-issue al dual-issue con predicción}
+\label{tab:summary}
+\begin{tabular}{@{}l>{\raggedright\arraybackslash}p{11cm}@{}}
+\toprule
+& Elementos \\
+\midrule
+Nuevo & BTB (16 entradas, 2 lecturas, 1 escritura), dos multiplexores más en la cadena del
+        siguiente PC, multiplexores de reagrupamiento de \{Pred, Target\}, \sigk{AnnulF}{1}
+        y la anulación del slot~1 \\
+Ampliado & registros IF/ID (66 bits más) e ID/EX (33 bits más por vía); Branch Unit: selección de la
+           predicción y de \sig{PCPlus4E}, \sig{MispredictE}, \sig{PCCorrectE} y señales de
+           actualización \\
+Modificado & Hazard Unit: \sig{PCSrcE} $\to$ \sig{MispredictE} y
+             \sigk{TakenE}{0} $\to$ \sig{FlushLane1E} \\
+Sin cambios & Issue Unit, forwarding, register file, memoria de datos, unidades de
+              control \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La optimización se basa en tres ideas:
+\begin{enumerate}
+  \item \textbf{Adivinar en Fetch, verificar en Execute.} El salto se sigue resolviendo
+        donde se resolvía. Lo que cambia es que Fetch ya no espera ese resultado: elige el
+        siguiente PC con la predicción, y la Branch Unit solo interviene si la predicción
+        falla.
+  \item \textbf{La predicción es parte de la instrucción.} Viaja con ella por los
+        registros de pipeline, se reagrupa con ella y se descarta con ella. Así la
+        verificación siempre compara la predicción correcta, sin importar los stalls ni
+        los reagrupamientos que haya entre Fetch y Execute.
+  \item \textbf{El orden del par sigue mandando.} Un salto predicho en el slot~0 anula al
+        slot~1, que es más joven; un salto en el slot~1 conserva al slot~0, que es más
+        antiguo. Es la misma regla que usaba la Hazard Unit para los saltos tomados,
+        aplicada ahora en Fetch.
+\end{enumerate}
+
+\begin{thebibliography}{9}
+\bibitem{harris} S.~L. Harris y D.~M. Harris, \emph{Digital Design and Computer
+  Architecture, RISC-V Edition}. Morgan Kaufmann, 2021.
+\end{thebibliography}
+
+\end{document}

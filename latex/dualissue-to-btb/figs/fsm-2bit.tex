@@ -1,0 +1,36 @@
+% Two-bit saturating counter of each BTB entry (style of Harris & Harris Fig. 7.67),
+% with the encoding and the allocation rules of designs/dualissue-btb/btb.v.
+\documentclass[tikz,border=3mm]{standalone}
+\usepackage{xfp}
+\usepackage[T1]{fontenc}
+\usepackage{tgheros}
+\renewcommand{\familydefault}{\sfdefault}
+\input{common}
+\definecolor{opt}{RGB}{139,90,43}
+\usetikzlibrary{arrows.meta,automata,positioning}
+\begin{document}
+\begin{tikzpicture}[>={Stealth[length=2.2mm]}, node distance=3.1cm,
+  st/.style={circle, draw, line width=1pt, minimum size=1.75cm, align=center,
+             font=\fontsize{7.5}{8.5}\selectfont},
+  ed/.style={font=\fontsize{7}{7}\selectfont, inner sep=1.5pt},
+  pr/.style={font=\fontsize{6.5}{6.5}\selectfont, text=black!65}]
+  \node[st, fill=opt!14] (s3)               {\textbf{11}\\Strongly\\Taken};
+  \node[st, fill=opt!14, right=of s3] (s2)  {\textbf{10}\\Weakly\\Taken};
+  \node[st, right=of s2] (s1)               {\textbf{01}\\Weakly\\Not Taken};
+  \node[st, right=of s1] (s0)               {\textbf{00}\\Strongly\\Not Taken};
+  \foreach \s/\p in {s3/predice tomado, s2/predice tomado, s1/predice no tomado, s0/predice no tomado}
+    \node[pr, below=2pt of \s] {\p};
+  % taken: towards 11, not taken: towards 00
+  \foreach \a/\b in {s0/s1, s1/s2, s2/s3}
+    \draw[->, line width=0.8pt] (\a.north west) to[bend right=28] node[ed, above] {tomado} (\b.north east);
+  \foreach \a/\b in {s3/s2, s2/s1, s1/s0}
+    \draw[->, line width=0.8pt] (\a.south east) to[bend right=28] node[ed, below] {no tomado} (\b.south west);
+  \draw[->, line width=0.8pt] (s3.north west) to[out=135, in=215, looseness=6] node[ed, left] {tomado} (s3.west);
+  \draw[->, line width=0.8pt] (s0.north east) to[out=45, in=-35, looseness=6] node[ed, right] {no tomado} (s0.east);
+  % initial value of the counter
+  \draw[->, opt, line width=0.8pt] ($(s2.north)+(0,1.25)$) node[ed, above, opt, align=center]
+      {\textbf{primera vez tomado}\\(\texttt{beq})} -- (s2.north);
+  \draw[->, opt, line width=0.8pt] ($(s3.north)+(0,1.25)$) node[ed, above, opt, align=center]
+      {\textbf{\texttt{jal}}\\(siempre se toma)} -- (s3.north);
+\end{tikzpicture}
+\end{document}
