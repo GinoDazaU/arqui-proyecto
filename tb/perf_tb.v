@@ -118,7 +118,7 @@ module perf_tb;
       for (i = 1; i < 32; i = i + 1)
         if (`DP.rf.rf[i] !== 32'bx) $display("    x%0d = %0d", i, $signed(`DP.rf.rf[i]));
       $display("  DMEM:");
-      for (i = 0; i < 256; i = i + 1)
+      for (i = 0; i < 1024; i = i + 1)
         if (dut.dmem.RAM[i] !== 32'bx) $display("    [%0d] = %0d", 4 * i, $signed(dut.dmem.RAM[i]));
       $display("  cycles=%0d retired=%0d IPC=%0.3f CPI=%0.3f", cycles, retired,
                1.0 * retired / cycles, 1.0 * cycles / retired);
