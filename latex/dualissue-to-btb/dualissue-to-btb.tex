@@ -74,8 +74,8 @@ Nuestro procesador dual-issue predice siempre que los saltos no se toman: mientr
 avanza hasta Execute, donde se resuelve, Fetch sigue buscando las instrucciones que vienen a
 continuación en memoria. Cuando el salto sí se toma, los dos pares que se buscaron detrás
 de él se descartan: el salto cuesta dos ciclos, en los que se dejan de emitir hasta cuatro
-instrucciones. El salto que cierra un bucle se toma en todas las iteraciones menos la última,
-así que ese costo se paga en casi todas las vueltas.
+instrucciones. El salto que cierra un bucle se toma casi en cada vuelta, así que ese costo
+se paga casi siempre.
 
 En esta guía reemplazamos esa predicción fija por una \emph{predicción de saltos}
 (\emph{branch prediction}) dinámica: en Fetch, antes de saber si el salto se toma, el
@@ -140,7 +140,8 @@ la \emph{Branch Unit}, en la etapa Execute. La Branch Unit compara los operandos
 \ins{beq}, calcula la dirección de destino $\sig{PCTargetE} = \sig{PCE} + \sig{ImmExtE}$ y
 activa \sig{PCSrcE} si el salto se toma. Mientras el salto avanza hasta Execute, Fetch sigue
 buscando en secuencia; dicho de otro modo, el procesador predice que \emph{ningún} salto se
-toma. Si el salto se toma, la Hazard Unit descarta las instrucciones del camino incorrecto:
+toma. Un \ins{jal} siempre se toma; un \ins{beq}, solo si sus operandos son iguales. Si el
+salto se toma, la Hazard Unit descarta las instrucciones del camino incorrecto:
 \begin{itemize}
   \item el par que está en Decode, con \sigk{FlushE}{0} y \sigk{FlushE}{1};
   \item el par que está en Fetch, con \sig{FlushD};
@@ -193,7 +194,8 @@ del slot~1. La iteración dura cinco ciclos}
 \end{figure}
 
 La pérdida es fácil de cuantificar: si un programa ejecuta $N_T$ saltos tomados, el
-procesador pierde $2N_T$ ciclos. Estos ciclos se pierden porque Fetch no sabe a dónde ir
+procesador pierde $2N_T$ ciclos (los \ins{jal} cuentan como saltos tomados). Estos ciclos
+se pierden porque Fetch no sabe a dónde ir
 hasta que el salto llega a Execute. Para evitarlo, Fetch tendría que decidir de dónde buscar
 las instrucciones siguientes \emph{antes} de conocer el resultado del salto, es decir,
 tendría que \emph{predecirlo}. Esta técnica es la predicción de saltos, que se presenta
@@ -395,7 +397,10 @@ En una sola ecuación,
   \sig{predtaken} = \sig{V}\cdot(\sig{Tag} = \sig{PC}[31{:}6])\cdot\sig{Ctr}[1].
 \]
 El BTB no necesita saber si la instrucción es un salto. Como solo se escriben saltos (lo
-vemos a continuación), una dirección con entrada válida es siempre la de un salto.
+vemos a continuación), una dirección con entrada válida es siempre la de un salto. Eso
+incluye al \ins{jal}: la primera vez falla en la tabla y paga los dos ciclos de siempre,
+pero deja su entrada con el contador en \texttt{11}, y como siempre se toma, las veces
+siguientes se predice bien.
 
 \subsection{Escribir la tabla}
 
@@ -885,7 +890,8 @@ el par de Decode y el par de Fetch, que eran la iteración predicha, se descarta
 retoma en $\sig{PCCorrectE} = \sig{PCPlus4E} = 36$, es decir, en el \ins{addi x5} que se
 había anulado. El contador baja a \texttt{10}, de modo que si el bucle se vuelve a ejecutar,
 su primer salto se predice bien. Es la misma penalización de dos ciclos que pagaba el
-dual-issue, pero ahora solo una vez por bucle y no en cada iteración.
+dual-issue, pero ahora solo una vez por bucle, al salir, y no en cada iteración (más el
+fallo de la primera ejecución, cuando el salto todavía no está en la tabla).
 
 \begin{figure}[htbp]
 \centering
