@@ -5,7 +5,6 @@
 \usepackage[T1]{fontenc}
 \usepackage[spanish]{babel}
 \usepackage{graphicx}
-\graphicspath{{figs/}}
 \usepackage{geometry}
 \usepackage{fancyhdr}
 \usepackage{listings}
@@ -17,6 +16,21 @@
 \usepackage{amsmath}
 \usepackage{tabularx}
 \usepackage{pdflscape}
+\usepackage{microtype}
+\usepackage{array}
+\usepackage{longtable}
+
+% Reduce los "Overfull \hbox" sin afectar el diseño
+\emergencystretch=3em
+
+% Todas las figuras, programas y extractos de RTL se incluyen en este paquete.
+% Si falta un archivo, la compilacion debe advertirlo, no ocultarlo.
+\graphicspath{{figs/}}
+\usepackage[hidelinks]{hyperref}
+\usepackage{needspace}
+\setlength{\parindent}{1.1em}
+\setlength{\parskip}{0.18em}
+\renewcommand{\arraystretch}{1.12}
 
 % Estilo para el codigo del programa (.mem)
 \lstdefinelanguage{memfile}{
@@ -34,12 +48,15 @@
   xleftmargin=2em,
   framexleftmargin=1.5em,
   breaklines=true,
-  columns=fixed,
+  columns=fullflexible,
   keepspaces=true,
   captionpos=b,
   aboveskip=1em,
   belowskip=1em,
-  showstringspaces=false
+  showstringspaces=false,
+  breaklines=true,
+  breakatwhitespace=false,
+  captionpos=b
 }
 % Estilo para fragmentos de Verilog
 \lstdefinestyle{verilog}{
@@ -50,29 +67,33 @@
   frame=single,
   xleftmargin=1em,
   framexleftmargin=0.5em,
-  columns=fixed,
+  columns=fullflexible,
+  breaklines=true,
+  breakatwhitespace=false,
   keepspaces=true,
   showstringspaces=false,
   aboveskip=0.8em,
   belowskip=0.8em
 }
-\captionsetup[lstlisting]{labelformat=empty}
+\renewcommand{\lstlistingname}{Código}
+\renewcommand{\lstlistlistingname}{Índice de código}
+\captionsetup[figure]{font=small,labelfont=bf,skip=5pt}
+\captionsetup[table]{font=small,labelfont=bf,skip=5pt}
 
 % ================= MÁRGENES =================
 \geometry{
   a4paper,
   margin=2.5cm,
-  top=3.5cm,
-  headheight=1.8cm,
-  headsep=0.8cm
+  top=3.0cm,
+  headheight=1.5cm,
+  headsep=0.65cm
 }
 
 % ================= ENCABEZADO Y PIE =================
-
 \pagestyle{fancy}
 \fancyhf{}
 
-\fancyhead[L]{\includegraphics[height=1.6cm]{utec-logo}}
+\fancyhead[L]{\includegraphics[height=1.15cm]{utec-logo.png}}
 \fancyhead[R]{2026-2}
 
 \fancyfoot[L]{Arquitectura de Computadoras (CS3051)}
@@ -86,7 +107,7 @@
 
 \begin{center}
     \centering
-    \includegraphics[height=10cm]{utec-logo}\\
+    \includegraphics[height=10cm]{utec-logo.png}\\
     \centering Arquitectura de Computadoras \\
     (CS3051) \\
     \vspace{1cm}
@@ -100,11 +121,11 @@
         Alvarado León, Adriana Celeste            \\
         Daza Yalta, Gino Jesús                  \\
         Ccolcca Flores, Marylin Regina   \\
-        \vspace{3cm}
-        \textbf{Profesor:} Williams Valencia , Carlos Eduardo\\
+        \vspace{1.5cm}
+        \textbf{Profesor:} Williams Valencia, Carlos Eduardo\\
 
         \centering
-        10 de noviembre del 2026
+        11 de noviembre de 2026
     \end{flushleft}
 \end{center}
 
@@ -123,11 +144,13 @@
 
 En la primera entrega se implementó el pipeline RV32I de cinco etapas con forwarding, stalling y flushing, y se inició la extensión superescalar con Dual Fetch y Dual Decode; en ese momento solo la vía 0 ejecutaba instrucciones. En esta segunda entrega se completa el procesador \textbf{Dual-Issue In-Order}: las dos vías llegan hasta Writeback, cada una con su propia ALU, y comparten un único puerto de memoria de datos y una única unidad de resolución de saltos (\textit{Branch Unit}).
 
-Para decidir cuántas instrucciones del par avanzan en cada ciclo se agregó una \textbf{Issue Unit}, y la Hazard Unit se amplió con forwarding entre vías, stalls por load-use en cualquiera de las dos vías, reagrupamiento de la instrucción que no pudo emitirse y anulación selectiva cuando se toma un salto. Todo el diseño está en \texttt{designs/dualissue/}.
+Para decidir cuántas instrucciones del par avanzan en cada ciclo se agregó una \textbf{Issue Unit}, y la Hazard Unit se amplió con forwarding entre vías, stalls por load-use en cualquiera de las dos vías, reagrupamiento de la instrucción que no pudo emitirse y anulación selectiva cuando se toma un salto.
 
-El informe describe la arquitectura (Sección~\ref{sec:arq}), la Issue Unit (Sección~\ref{sec:issue}), el manejo de hazards (Sección~\ref{sec:hazard}), las waveforms de los siete programas de prueba (Sección~\ref{sec:waves}) y una comparación preliminar de ciclos e IPC frente al pipeline Single-Issue (Sección~\ref{sec:comp}).
+El informe describe la arquitectura, la Issue Unit, el manejo de hazards, las waveforms de los siete programas de prueba y una comparación preliminar de ciclos e IPC frente al pipeline Single-Issue.
 
 % =====================================================================
+\noindent\textit{Los fragmentos de código Verilog y los programas de prueba incluidos en este informe ilustran los principales componentes de la implementación y permiten documentar su funcionamiento.}
+
 \section{Arquitectura Dual-Issue}
 \label{sec:arq}
 
@@ -144,7 +167,7 @@ La Figura~\ref{fig:top} muestra cómo se conectan los módulos. \texttt{top.v} c
     \item \textbf{Hazard Unit} (\texttt{hazard.v}): forwarding de ambas vías, stalls, reagrupamiento y flushes.
 \end{itemize}
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=\linewidth]{dualissue-top}
     \caption{Integración de los módulos del procesador Dual-Issue (\texttt{top.v} y \texttt{riscv.v}).}
@@ -170,15 +193,15 @@ otro caso & \texttt{PCF}$+8$ & se emitieron ambas instrucciones \\
 \end{center}
 
 \noindent El selector es \texttt{\{\textasciitilde PCSrcE \& \textasciitilde RegroupD, PCSrcE\}}. Además, \texttt{StallF} congela el PC durante un stall por load-use.
+\begin{samepage}
+\noindent\textbf{Implementación Verilog.} Selección del PC según salto, emisión parcial o emisión doble.
+\end{samepage}
+\lstinputlisting[style=verilog,firstline=64,lastline=70,caption={Selección del PC según salto, emisión parcial o emisión doble.},label={lst:pc-select}]{../../designs/dualissue/datapath.v}
+
 
 \paragraph{Registro IF/ID y reagrupamiento.} El registro \texttt{regD} (192 bits) guarda las dos instrucciones, sus PC y sus PC+4. Delante de él se agregaron multiplexores controlados por \texttt{RegroupD}: cuando solo se emite el slot 0, la instrucción que esperaba en el slot 1 pasa a ser el nuevo slot 0 y la primera instrucción buscada (\texttt{InstrF\_0}) pasa a ser el nuevo slot 1:
 
-\begin{lstlisting}[style=verilog]
-wire [31:0] InstrN_0 = RegroupD ? InstrD_1 : InstrF_0;
-wire [31:0] InstrN_1 = RegroupD ? InstrF_0 : InstrF_1;
-wire [31:0] PCN_0    = RegroupD ? PCD_1    : PCF;
-wire [31:0] PCN_1    = RegroupD ? PCF      : PCPlus4F;
-\end{lstlisting}
+\lstinputlisting[style=verilog,firstline=97,lastline=102,caption={Selección de instrucciones y direcciones durante el reagrupamiento (datapath.v).},label={lst:regroup-dp}]{../../designs/dualissue/datapath.v}
 
 \noindent Como en ese ciclo el PC avanza solo 4, \texttt{PCF} es exactamente la dirección siguiente a \texttt{PCD\_1}, y el nuevo par sigue siendo de dos instrucciones consecutivas. Así ninguna instrucción se pierde ni se ejecuta dos veces.
 
@@ -192,16 +215,28 @@ La resolución de saltos ya no está duplicada: se agregó el módulo \texttt{br
 \texttt{PCSrcE} &= (\texttt{BranchE} \land (\texttt{SrcAE} = \texttt{SrcBE})) \lor \texttt{JumpE} \\
 \texttt{TakenE\_0} &= \texttt{PCSrcE} \land \lnot\texttt{BrLaneE}
 \end{align}
-\texttt{TakenE\_0} indica que el salto tomado está en la vía 0; en ese caso la instrucción de la vía 1 es más joven y debe anularse (Sección~\ref{sec:hazard}).
+\texttt{TakenE\_0} indica que el salto tomado está en la vía 0; en ese caso la instrucción de la vía 1 es más joven y debe anularse.
+
+
+\begin{samepage}
+\noindent\textbf{Implementación Verilog.} Selección de la vía y comparación del salto en el recurso compartido.
+\end{samepage}
+\lstinputlisting[style=verilog,firstline=23,lastline=38,caption={Selección de la vía y comparación del salto en el recurso compartido.},label={lst:branch-unit}]{../../designs/dualissue/branchunit.v}
 
 \paragraph{Memory.} Hay un único puerto de memoria de datos. El Controller genera \texttt{MemLaneM}, que vale 1 cuando la instrucción de memoria está en la vía 1 (\texttt{MemWriteM\_1} o \texttt{ResultSrcM\_1}$=$\texttt{01}); con ella los multiplexores \texttt{memaddrmux} y \texttt{memdatamux} entregan a la memoria la dirección y el dato de esa vía. La escritura se habilita con $\texttt{MemWriteM} = \texttt{MemWriteM\_0} \lor \texttt{MemWriteM\_1}$. Esto funciona porque la Issue Unit garantiza que nunca hay dos instrucciones de memoria en el mismo par. El dato leído (\texttt{ReadDataM}) llega a los dos registros MEM/WB y solo lo usa la vía que tiene el \texttt{lw}. El registro EX/MEM de la vía 1 (\texttt{regM\_1}) se puede limpiar con \texttt{FlushM\_1}.
 
 \paragraph{Writeback.} Cada vía tiene su multiplexor de resultado (\texttt{resultmux\_0}, \texttt{resultmux\_1}) y su puerto de escritura en el Register File (\texttt{we3/a3/wd3} y \texttt{we6/a6/wd6}). Ambos escriben en el flanco de bajada; si las dos vías escriben el mismo registro, el puerto de la vía 1 se aplica después y gana, que es lo correcto porque esa instrucción es la más joven.
 
+
+\begin{samepage}
+\noindent\textbf{Implementación Verilog.} Dos puertos de escritura: prioridad de la instrucción más joven.
+\end{samepage}
+\lstinputlisting[style=verilog,firstline=12,lastline=18,caption={Dos puertos de escritura: prioridad de la instrucción más joven.},label={lst:regfile-write}]{../../designs/dualissue/regfile.v}
+
 \begin{landscape}
 \begin{figure}[p]
     \centering
-    \includegraphics[width=\linewidth,height=0.92\textheight,keepaspectratio]{dualissue-processor}
+    \includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{dualissue-processor}
     \caption{Datapath completo del procesador Dual-Issue. Arriba la vía 0, abajo la vía 1; al centro el Register File (4 lecturas, 2 escrituras), la Branch Unit y el puerto de memoria compartidos. En verde la Issue Unit y en naranja la Hazard Unit.}
     \label{fig:datapath}
 \end{figure}
@@ -217,6 +252,12 @@ El Controller mantiene los dos decodificadores de E1 (\texttt{md\_0}/\texttt{ad\
     \item \textbf{Puerto de memoria.} Genera \texttt{MemWriteM} (OR de ambas vías) y \texttt{MemLaneM}.
     \item \textbf{Señales para hazards.} Envía \texttt{ResultSrcEb0\_0/1} (hay un \texttt{lw} en EX) a la Issue Unit y \texttt{RegWriteM\_0/1}, \texttt{RegWriteW\_0/1} a la Hazard Unit.
 \end{itemize}
+
+
+\begin{samepage}
+\noindent\textbf{Implementación Verilog.} Habilitación del único puerto de memoria y selección de su vía.
+\end{samepage}
+\lstinputlisting[style=verilog,firstline=137,lastline=140,caption={Habilitación del único puerto de memoria y selección de su vía.},label={lst:mem-ctrl}]{../../designs/dualissue/controller.v}
 
 \subsection{Módulos modificados}
 
@@ -274,9 +315,21 @@ La Issue Unit (\texttt{issue.v}) es combinacional y trabaja sobre el par que est
 \texttt{IssueOneD} = \texttt{rawD} \lor \texttt{memD} \lor \texttt{ctrlD} \lor \texttt{luseD\_1}
 \end{equation}
 
+
+\begin{samepage}
+\noindent\textbf{Implementación Verilog.} Comprobaciones RAW y conflictos estructurales entre candidatos de emisión.
+\end{samepage}
+\lstinputlisting[style=verilog,firstline=40,lastline=45,caption={Comprobaciones RAW y conflictos estructurales entre candidatos de emisión.},label={lst:issue-conflict}]{../../designs/dualissue/issue.v}
+
 \noindent Hay entonces tres resultados posibles: si \texttt{LoadUseD\_0}$=1$ no se emite nada (stall); si \texttt{IssueOneD}$=1$ se emite solo el slot 0; en otro caso se emiten las dos instrucciones. Nunca se emite el slot 1 sin el slot 0, de modo que el orden del programa se mantiene.
 
 Un load-use en el slot 1 no necesita stall: basta con emitir solo el slot 0. La instrucción que espera se reagrupa, entra a EX un ciclo después y para entonces el \texttt{lw} ya está en WB, desde donde se adelanta. Tampoco se restringen las dependencias WAW ni WAR dentro del par: como las vías escriben en WB en el mismo ciclo y la vía 1 tiene prioridad, el resultado final es el correcto (Programa 5).
+
+
+\begin{samepage}
+\noindent\textbf{Implementación Verilog.} Detección Load-Use por registros realmente leídos en ambas vías.
+\end{samepage}
+\lstinputlisting[style=verilog,firstline=49,lastline=58,caption={Detección Load-Use por registros realmente leídos en ambas vías.},label={lst:issue-luse}]{../../designs/dualissue/issue.v}
 
 \subsection{Asignación de recursos}
 
@@ -307,14 +360,7 @@ En el siguiente ciclo, la instrucción que esperaba forma par con la instrucció
 
 Cada uno de los cuatro operandos en EX (\texttt{Rs1E\_0}, \texttt{Rs2E\_0}, \texttt{Rs1E\_1}, \texttt{Rs2E\_1}) se compara con los cuatro destinos posibles: \texttt{RdM\_1}, \texttt{RdM\_0}, \texttt{RdW\_1} y \texttt{RdW\_0}. La función \texttt{fwd} de \texttt{hazard.v} elige la fuente con este orden de prioridad:
 
-\begin{lstlisting}[style=verilog]
-if      (rs == 5'b0)            fwd = 3'b000;  // x0: Register File
-else if ((rs == rdM1) & weM1)   fwd = 3'b100;  // MEM lane 1
-else if ((rs == rdM0) & weM0)   fwd = 3'b011;  // MEM lane 0
-else if ((rs == rdW1) & weW1)   fwd = 3'b010;  // WB lane 1
-else if ((rs == rdW0) & weW0)   fwd = 3'b001;  // WB lane 0
-else                            fwd = 3'b000;  // Register File
-\end{lstlisting}
+\lstinputlisting[style=verilog,firstline=30,lastline=38,caption={Prioridad de forwarding entre las dos vías y las etapas MEM/WB (hazard.v).},label={lst:forwarding}]{../../designs/dualissue/hazard.v}
 
 \noindent La prioridad sigue la antigüedad de los productores: MEM es más reciente que WB y, dentro de la misma etapa, la vía 1 es más joven que la vía 0. Así, cuando varias instrucciones escriben el mismo registro, siempre se adelanta el valor más reciente. En las waveforms las fuentes aparecen como RF, WB0, WB1, MEM0 y MEM1.
 
@@ -363,21 +409,48 @@ Los saltos se resuelven en EX. Cuando \texttt{PCSrcE}$=1$, el PC toma \texttt{PC
 \label{tab:hazard}
 \end{table}
 
-\noindent Un salto tomado cuesta dos ciclos, igual que en el pipeline, pero en Dual-Issue cada ciclo perdido equivale a dos instrucciones, así que la penalización relativa es mayor.
+
+\begin{samepage}
+\noindent\textbf{Implementación Verilog.} Stalls, reagrupamiento y flushing selectivo en la Hazard Unit.
+\end{samepage}
+\lstinputlisting[style=verilog,firstline=49,lastline=64,caption={Stalls, reagrupamiento y flushing selectivo en la Hazard Unit.},label={lst:hazard-selective}]{../../designs/dualissue/hazard.v}
+
+\noindent Un salto tomado cuesta dos ciclos, igual que en el pipeline, pero en Dual-Issue pueden descartarse más instrucciones jóvenes en cada redirección, especialmente si el salto ocupa el slot 0.
 
 \FloatBarrier
 % =====================================================================
 \section{Programas de prueba y waveforms}
 \label{sec:waves}
 
-Los programas están en \texttt{tb/programs/dualissue/}. Cada uno termina con \texttt{jal x0,0} (\textit{halt}). Las waveforms se generaron con \texttt{latex/informe-e2/waves/}: el testbench \texttt{trace\_tb.v} imprime las señales en cada ciclo y \texttt{waves.py} las dibuja. Cada figura muestra los ciclos hasta que el \textit{halt} llega a WB. Las instrucciones aparecen desensambladas en cada etapa y vía (\texttt{InstrD\_0}, \texttt{InstrE\_1}, etc.); \textit{bubble} indica una burbuja. Los ciclos 0 a 2 corresponden al reset.
+Todos los programas terminan con \texttt{jal x0,0} (\textit{halt}), que salta a sí mismo y marca el final. Las waveforms provienen de la simulación en Verilog y muestran los ciclos hasta que el \textit{halt} llega a WB. Las instrucciones aparecen desensambladas en cada etapa y vía (\texttt{InstrD\_0}, \texttt{InstrE\_1}, etc.); \textit{bubble} indica una burbuja y los ciclos 0 a 2 son el reset.
+
+
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabularx}{\linewidth}{@{}p{0.28\linewidth}Xl@{}}
+\toprule
+\textbf{Criterio E2} & \textbf{Evidencia principal} & \textbf{Prueba} \\
+\midrule
+Dos ALU en paralelo & Instrucciones ALU independientes en EX y dos escrituras & P1, P5 \\
+RAW y forwarding & Emisión parcial y selección de MEM/WB de ambas vías & P2 \\
+Load-Use y memoria & Stalls y acceso exclusivo al puerto compartido & P3 \\
+Branches y flushing & Saltos en ambos slots y anulación de instrucciones jóvenes & P4, P7 \\
+Dos escrituras & WB simultáneo y prioridad WAW & P5 \\
+Reagrupamiento & Conservación de pendientes y orden del programa & P6 \\
+\bottomrule
+\end{tabularx}
+\caption{Correspondencia entre pruebas de la E2 y criterios de la rúbrica.}
+\label{tab:rubrica-pruebas}
+\end{table}
+\FloatBarrier
 
 % ---------- PROGRAMA 1 ----------
-\subsection{Programa 1: dos operaciones ALU independientes}
+\subsection{Programa 1: Dos operaciones ALU independientes}
 
-\lstinputlisting[style=programa, caption={Programa 1 (\texttt{dualissue/alu\_pair.mem}).}]{../../tb/programs/dualissue/alu_pair.mem}
+\lstinputlisting[style=programa,caption={Programa 1: \texttt{alu\_pair.mem} (fuente del repositorio).},label={lst:programa1}]{../../tb/programs/dualissue/alu_pair.mem}
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{waveform-alu-pair}
   \caption{Waveform del Programa 1.}
@@ -386,12 +459,14 @@ Los programas están en \texttt{tb/programs/dualissue/}. Cada uno termina con \t
 
 \textbf{Análisis.} Ningún par tiene dependencias internas, así que \texttt{IssueOneD} vale 0 todo el programa y cada par pasa completo a EX. Desde el ciclo 4 el PC avanza de 8 en 8 (\texttt{0x8}, \texttt{0x10}, \texttt{0x18}, ...). En los ciclos 4 a 8 las dos ALU trabajan a la vez: por ejemplo, en el ciclo 6 \texttt{add x5,x1,x2} calcula $3+7=10$ en la vía 0 y \texttt{sub x6,x3,x4} calcula $10-4=6$ en la vía 1. Aunque dentro de cada par no hay dependencias, sí las hay entre pares consecutivos, y se resuelven con forwarding desde ambas vías: en ese mismo ciclo \texttt{add x5} toma x1 de WB0 y x2 de WB1, y \texttt{sub x6} toma x3 de MEM0 y x4 de MEM1.
 
-En los ciclos 9 y 10 se emiten pares \texttt{sw} + \texttt{addi}: el \texttt{sw} usa el puerto de memoria y el \texttt{addi} la ALU de la otra vía. Las escrituras en memoria (ciclos 10 a 12) son \texttt{MEM[0]}$=10$, \texttt{MEM[4]}$=6$ y \texttt{MEM[8]}$=12$, las esperadas. En WB, \texttt{RegWriteW\_0} y \texttt{RegWriteW\_1} se activan juntos desde el ciclo 6 y se escriben dos registros por ciclo (x1/x2, x3/x4, x5/x6, ...). El programa termina en 12 ciclos con 16 instrucciones (IPC $=1.33$); el pipeline necesita 20.
+En los ciclos correspondientes a las instrucciones de memoria se emiten pares \texttt{sw} + \texttt{addi}: el \texttt{sw} usa el puerto de memoria y el \texttt{addi} la ALU de la otra vía. Las escrituras en memoria (ciclos 10 a 12) son \texttt{MEM[0]}$=10$, \texttt{MEM[4]}$=6$ y \texttt{MEM[8]}$=12$, las esperadas. En WB, \texttt{RegWriteW\_0} y \texttt{RegWriteW\_1} se activan juntos desde el ciclo 6 y se escriben dos registros por ciclo (x1/x2, x3/x4, x5/x6, ...). El programa termina en 12 ciclos con 16 instrucciones (IPC $=1.33$); el pipeline necesita 20.
+
+\FloatBarrier
 
 % ---------- PROGRAMA 2 ----------
 \subsection{Programa 2: RAW dentro del par y forwarding entre vías}
 
-\lstinputlisting[style=programa, caption={Programa 2 (\texttt{dualissue/raw\_forward.mem}).}]{../../tb/programs/dualissue/raw_forward.mem}
+\lstinputlisting[style=programa,caption={Programa 2: \texttt{raw\_forward.mem} (fuente del repositorio).},label={lst:programa2}]{../../tb/programs/dualissue/raw_forward.mem}
 
 \begin{figure}[!htbp]
   \centering
@@ -406,12 +481,14 @@ En los ciclos 6 y 7 se ve el forwarding cruzado entre vías. En el ciclo 6, \tex
 
 Al final hay cuatro \texttt{sw} seguidos. Como hay un solo puerto de memoria, \texttt{IssueOneD} vale 1 en los ciclos 7 a 9 y cada \texttt{sw} entra solo a EX. Las escrituras de los ciclos 9 a 12 son \texttt{MEM[0]}$=8$, \texttt{MEM[4]}$=3$, \texttt{MEM[8]}$=14$ y \texttt{MEM[12]}$=11$.
 
+\FloatBarrier
+
 % ---------- PROGRAMA 3 ----------
 \subsection{Programa 3: load-use y conflictos del puerto de memoria}
 
-\lstinputlisting[style=programa, caption={Programa 3 (\texttt{dualissue/memory.mem}).}]{../../tb/programs/dualissue/memory.mem}
+\lstinputlisting[style=programa,caption={Programa 3: \texttt{memory.mem} (fuente del repositorio).},label={lst:programa3}]{../../tb/programs/dualissue/memory.mem}
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{waveform-memory}
   \caption{Waveform del Programa 3.}
@@ -424,10 +501,12 @@ En el ciclo 8 \texttt{add x5,x3,x4} está en el slot 0 y necesita x4, que carga 
 
 El último caso combina las dos situaciones. En el ciclo 11 el par (\texttt{lw x10} | \texttt{addi x8,x10,1}) tiene RAW, así que solo se emite el \texttt{lw}. En el ciclo 12 \texttt{addi x8} ya es el slot 0 y el \texttt{lw} está en EX, lo que produce un stall. En el ciclo 14 \texttt{addi x8} toma x10 de WB0 y calcula 34. El programa tiene 2 stalls, igual que el pipeline. Las escrituras son \texttt{MEM[0]}$=11$, \texttt{MEM[4]}$=22$, \texttt{MEM[8]}$=33$, \texttt{MEM[12]}$=12$ (\texttt{sw} en la vía 1, ciclo 15) y \texttt{MEM[16]}$=34$.
 
+\FloatBarrier
+
 % ---------- PROGRAMA 4 ----------
 \subsection{Programa 4: branches en ambas posiciones y flushing}
 
-\lstinputlisting[style=programa, caption={Programa 4 (\texttt{dualissue/branch.mem}).}]{../../tb/programs/dualissue/branch.mem}
+\lstinputlisting[style=programa,caption={Programa 4: \texttt{branch.mem} (fuente del repositorio).},label={lst:programa4}]{../../tb/programs/dualissue/branch.mem}
 
 \begin{landscape}
 \begin{figure}[p]
@@ -448,12 +527,14 @@ El último caso combina las dos situaciones. En el ciclo 11 el par (\texttt{lw x
 
 \textit{jal en el slot 0 (ciclo 14).} \texttt{jal x8,8} es un salto incondicional en la vía 0: anula el \texttt{addi x3,99} de su par (\texttt{FlushM\_1}) y guarda la dirección de retorno $x8=64$. Al final se escriben \texttt{MEM[0]}$=7$, \texttt{[4]}$=1$, \texttt{[8]}$=2$, \texttt{[12]}$=3$, \texttt{[16]}$=4$ y \texttt{[20]}$=64$, todos correctos.
 
+\FloatBarrier
+
 % ---------- PROGRAMA 5 ----------
 \subsection{Programa 5: dos escrituras en el Register File}
 
-\lstinputlisting[style=programa, caption={Programa 5 (\texttt{dualissue/two\_writes.mem}).}]{../../tb/programs/dualissue/two_writes.mem}
+\lstinputlisting[style=programa,caption={Programa 5: \texttt{two\_writes.mem} (fuente del repositorio).},label={lst:programa5}]{../../tb/programs/dualissue/two_writes.mem}
 
-\begin{figure}[!htbp]
+\begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{waveform-two-writes}
   \caption{Waveform del Programa 5.}
@@ -470,10 +551,12 @@ El segundo par escribe el mismo registro (\texttt{addi x3,x0,10} | \texttt{addi 
 \end{itemize}
 Las escrituras en memoria son \texttt{MEM[0]}$=30$, \texttt{MEM[4]}$=31$ y \texttt{MEM[8]}$=3$.
 
+\FloatBarrier
+
 % ---------- PROGRAMA 6 ----------
 \subsection{Programa 6: reagrupamiento y orden del programa}
 
-\lstinputlisting[style=programa, caption={Programa 6 (\texttt{dualissue/regroup.mem}).}]{../../tb/programs/dualissue/regroup.mem}
+\lstinputlisting[style=programa,caption={Programa 6: \texttt{regroup.mem} (fuente del repositorio).},label={lst:programa6}]{../../tb/programs/dualissue/regroup.mem}
 
 \begin{figure}[!htbp]
   \centering
@@ -488,12 +571,14 @@ El reagrupamiento se repite en los ciclos 6, 9 y 11. En todo momento \texttt{PCD
 
 Cada \texttt{sw} guarda el valor actual de x1, así que una instrucción perdida o repetida cambiaría la secuencia guardada. \texttt{WriteData} toma los valores 1, 2, 3, 4, 5 y 6, en ese orden y en las direcciones 0 a 20.
 
+\FloatBarrier
+
 % ---------- PROGRAMA 7 ----------
 \subsection{Programa 7: conflicto en la Branch Unit y jal en el slot 1}
 
 Este programa completa los casos de control: dos saltos en el mismo par, un \texttt{jal} tomado en el slot 1 y un \texttt{beq} que depende de la otra instrucción de su par.
 
-\lstinputlisting[style=programa, caption={Programa 7 (\texttt{dualissue/branch\_conflict.mem}).}]{../../tb/programs/dualissue/branch_conflict.mem}
+\lstinputlisting[style=programa,caption={Programa 7: \texttt{branch\_conflict.mem} (fuente del repositorio).},label={lst:programa7}]{../../tb/programs/dualissue/branch_conflict.mem}
 
 \begin{landscape}
 \begin{figure}[p]
@@ -509,6 +594,8 @@ Este programa completa los casos de control: dos saltos en el mismo par, un \tex
 En el ciclo 10 el par en EX es (\texttt{addi x4} | \texttt{jal x5,12}). El salto está en la vía 1 (\texttt{BrLaneE}$=1$, \texttt{TakenE\_0}$=0$), así que \texttt{addi x4} se conserva y llega a MEM en el ciclo 11. El \texttt{jal} escribe su dirección de retorno por la vía 1: \texttt{RdW\_1}$=$x5, \texttt{ResultW\_1}$=40$ en el ciclo 12.
 
 En el ciclo 12 el par (\texttt{beq x1,x2} | \texttt{jal x3,40}) vuelve a tener dos saltos y solo entra el \texttt{beq}. En el ciclo 13 el \texttt{beq} se toma y \texttt{FlushD} descarta el \texttt{jal x3} que esperaba en Decode. Ese \texttt{jal} habría escrito x3, pero x3 se mantiene en 3. Por último, en el ciclo 15 \texttt{beq x7,x0} depende de \texttt{addi x7} en el mismo par: espera un ciclo, entra a EX en el ciclo 17 con x7 adelantado desde MEM0 y no se toma. Las escrituras son \texttt{MEM[0]}$=3$, \texttt{[4]}$=1$, \texttt{[8]}$=40$, \texttt{[12]}$=7$ y \texttt{[16]}$=8$.
+
+\FloatBarrier
 
 \subsection{Resumen de señales}
 
@@ -544,21 +631,28 @@ En el ciclo 12 el par (\texttt{beq x1,x2} | \texttt{jal x3,40}) vuelve a tener d
 
 \subsection{Metodología}
 
-Ambos diseños se simulan con el mismo testbench (\texttt{tb/perf\_tb.v}; el Dual-Issue se compila con \texttt{-DDUAL}) y los mismos programas, sin modificarlos. El criterio de medición es el mismo en los dos: se cuenta desde el primer ciclo después del reset hasta el ciclo en que el \textit{halt} (\texttt{jal x0,0}) llega a WB. Las instrucciones retiradas son las que llegan a WB (sin contar burbujas), incluido el \textit{halt}. El script \texttt{tb/run\_all.sh} ejecuta todos los programas en las dos arquitecturas, compara el estado final (los 31 registros y la memoria de datos) y calcula las métricas:
+Ambos diseños se simulan con el mismo testbench (\texttt{perf\_tb.v}; el Dual-Issue se compila con \texttt{-DDUAL}) y los mismos programas, sin modificarlos. El criterio de medición es el mismo en los dos: se cuenta desde el primer ciclo después del reset hasta el ciclo en que el \textit{halt} (\texttt{jal x0,0}) llega a WB. Las instrucciones retiradas son las que llegan a WB (sin contar burbujas), incluido el \textit{halt}. El script \texttt{run\_all.sh} ejecuta todos los programas en las dos arquitecturas, compara el estado final (los 31 registros y la memoria de datos) y calcula las métricas:
 \begin{equation*}
 \text{IPC} = \frac{\text{instrucciones}}{\text{ciclos}}, \qquad
 \text{CPI} = \frac{\text{ciclos}}{\text{instrucciones}}, \qquad
 \text{Speedup}_{A\to B} = \frac{\text{ciclos}(A)}{\text{ciclos}(B)}
 \end{equation*}
 
+
+\begin{samepage}
+\noindent\textbf{Implementación Verilog.} Contadores de ciclos, instrucciones retiradas y eventos en el testbench.
+\end{samepage}
+\lstinputlisting[style=verilog,firstline=89,lastline=113,caption={Contadores de ciclos, instrucciones retiradas y eventos en el testbench.},label={lst:perf-counter}]{../../tb/perf_tb.v}
+
 Además de los programas de esta entrega se incluyen los cuatro de E1 y un pequeño benchmark, \texttt{loop.mem}, que llena un arreglo de 8 palabras con un bucle y luego lo suma con otro (\texttt{lw}, \texttt{add}, \texttt{beq}, \texttt{jal}).
 
 \subsection{Resultados}
 
-\begin{table}[H]
+\begin{landscape}
+\begin{table}[p]
 \centering
-\footnotesize
-\setlength{\tabcolsep}{3.5pt}
+\small
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}lccccccccccc@{}}
 \toprule
  & & \multicolumn{2}{c}{\textbf{A: Pipeline}} & \multicolumn{3}{c}{\textbf{B: Dual-Issue}} & \multicolumn{4}{c}{\textbf{Eventos en B (ciclos)}} & \\
@@ -584,8 +678,9 @@ E1 \texttt{flush}            &  8 & 16 & 0.500 & 14 & 0.571 & 1.750 &  4 & 2 & 0
 \caption{Ciclos, IPC y speedup del Dual-Issue (B) frente al pipeline Single-Issue (A). \textit{Dual}: ciclos con dos instrucciones en EX; \textit{Regr.}: ciclos con reagrupamiento; \textit{Flush}: ciclos con \texttt{FlushD} (incluye el \textit{halt}).}
 \label{tab:comp}
 \end{table}
+\end{landscape}
 
-En los 12 programas, \texttt{run\_all.sh} reporta \textbf{OK}: el pipeline y el Dual-Issue terminan con los mismos registros y la misma memoria de datos.
+Según los resultados registrados por el equipo, en los 12 programas \texttt{run\_all.sh} reporta \textbf{OK}: el pipeline y el Dual-Issue terminan con los mismos registros y la misma memoria de datos.
 
 \subsection{Análisis}
 
@@ -602,11 +697,8 @@ En resumen, el procesador aprovecha el paralelismo cuando el código lo permite.
 
 \section{Conclusiones}
 
-\begin{itemize}
-    \item Se completó el procesador Dual-Issue In-Order: dos vías con ALU propia hasta WB, Register File de 4 lecturas y 2 escrituras, un único puerto de memoria y una única Branch Unit, ambos asignados dinámicamente a la vía que los necesita.
-    \item La Issue Unit emite dos instrucciones, una o ninguna según RAW dentro del par, conflictos de memoria o de saltos y load-use. Cuando emite solo una, el reagrupamiento combina la instrucción pendiente con la siguiente sin perder ni repetir instrucciones.
-    \item La Hazard Unit adelanta datos desde las dos vías en MEM y WB, con prioridad para el productor más joven, y anula únicamente las instrucciones más jóvenes que un salto tomado, conservando la instrucción más antigua cuando el salto está en el slot 1.
-    \item Los siete programas de prueba y los cuatro de E1 producen el mismo estado final en el pipeline y en el Dual-Issue. El speedup va de 1.07 a 1.67, y los saltos tomados son la principal causa de pérdida de rendimiento.
-\end{itemize}
+La segunda entrega completa el procesador Dual-Issue In-Order con dos vías hasta WB, cuatro puertos de lectura, dos de escritura y recursos compartidos para memoria y saltos. La Issue Unit combina emisión doble, emisión parcial y reagrupamiento, mientras que la Hazard Unit resuelve dependencias y aplica flushing selectivo.
+
+Los siete programas de E2 y las cuatro pruebas de E1 presentan el mismo estado final en las arquitecturas comparadas, según la validación del equipo. Los speedups reportados van de 1.07 a 1.67; los saltos tomados, las dependencias RAW y los recursos compartidos limitan el IPC efectivo.
 
 \end{document}
