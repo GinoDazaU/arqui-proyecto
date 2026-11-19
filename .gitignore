@@ -38,5 +38,8 @@ docs/harris-book.pdf
 *.fls
 *.fdb_latexmk
 
-# Generated figure pdfs (rebuilt by each latex/*/build.sh)
-latex/*/figs/*.pdf
+# Generated figure pdfs (rebuilt by each docs/*/*/build.sh)
+docs/*/*/figs/*.pdf
+
+# Python caches
+__pycache__/
